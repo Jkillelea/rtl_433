@@ -24,15 +24,6 @@
 #include <stdio.h>
 
 #if defined(_MSC_VER) && !defined(__clang__)
-    /*
-     * MSVC have no support for "Variable Length Arrays"
-     * But compiling using 'clang-cl', '_MSC_VER' is a built-in. Hence use VLA
-     * for Clang in that case.
-     * With no VLAs, we need 'alloca()' which is in '<malloc.h>' etc.
-     */
-    #include <malloc.h>
-    #define RTL_433_NO_VLAs
-
     // MSVC has something like C99 restrict as __restrict
     #ifndef restrict
     #define restrict __restrict
@@ -55,12 +46,18 @@ typedef struct data_array {
     void        *values;
 } data_array_t;
 
+typedef union data_value {
+    int         v_int;
+    double      v_dbl;
+    void        *v_ptr;
+} data_value_t;
+
 typedef struct data {
     char        *key;
     char        *pretty_key; /**< the name used for displaying data to user in with a nicer name */
     data_type_t type;
     char        *format; /**< if not null, contains special formatting string */
-    void        *value;
+    data_value_t value;
     unsigned    retain; /**< incremented on data_retain, data_free only frees if this is zero */
     struct data *next; /**< chaining to the next element in the linked list; NULL indicates end-of-list */
 } data_t;
@@ -132,11 +129,11 @@ void data_free(data_t *data);
 struct data_output;
 
 typedef struct data_output {
-    void (*print_data)(struct data_output *output, data_t *data, char *format);
-    void (*print_array)(struct data_output *output, data_array_t *data, char *format);
-    void (*print_string)(struct data_output *output, const char *data, char *format);
-    void (*print_double)(struct data_output *output, double data, char *format);
-    void (*print_int)(struct data_output *output, int data, char *format);
+    void (*print_data)(struct data_output *output, data_t *data, char const *format);
+    void (*print_array)(struct data_output *output, data_array_t *data, char const *format);
+    void (*print_string)(struct data_output *output, const char *data, char const *format);
+    void (*print_double)(struct data_output *output, double data, char const *format);
+    void (*print_int)(struct data_output *output, int data, char const *format);
     void (*output_start)(struct data_output *output, const char **fields, int num_fields);
     void (*output_poll)(struct data_output *output);
     void (*output_free)(struct data_output *output);
@@ -176,9 +173,9 @@ void data_output_free(struct data_output *output);
 
 /* data output helpers */
 
-void print_value(data_output_t *output, data_type_t type, void *value, char *format);
+void print_value(data_output_t *output, data_type_t type, data_value_t value, char const *format);
 
-void print_array_value(data_output_t *output, data_array_t *array, char *format, int idx);
+void print_array_value(data_output_t *output, data_array_t *array, char const *format, int idx);
 
 size_t data_print_jsons(data_t *data, char *dst, size_t len);
 

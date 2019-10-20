@@ -27,6 +27,7 @@
 #include "optparse.h"
 #include "output_mqtt.h"
 #include "compat_time.h"
+#include "fatal.h"
 
 #ifdef _WIN32
 #include <io.h>
@@ -81,10 +82,8 @@ void r_init_cfg(r_cfg_t *cfg)
     list_ensure_size(&cfg->output_handler, 16);
 
     cfg->demod = calloc(1, sizeof(*cfg->demod));
-    if (!cfg->demod) {
-        fprintf(stderr, "Could not create demod!\n");
-        exit(1);
-    }
+    if (!cfg->demod)
+        FATAL_CALLOC("r_init_cfg()");
 
     cfg->demod->level_limit = DEFAULT_LEVEL_LIMIT;
 
@@ -95,10 +94,8 @@ void r_init_cfg(r_cfg_t *cfg)
 r_cfg_t *r_create_cfg(void)
 {
     r_cfg_t *cfg = calloc(1, sizeof(*cfg));
-    if (!cfg) {
-        fprintf(stderr, "Could not create cfg!\n");
-        exit(1);
-    }
+    if (!cfg)
+        FATAL_CALLOC("r_create_cfg()");
 
     r_init_cfg(cfg);
 
@@ -167,6 +164,8 @@ void register_protocol(r_cfg_t *cfg, r_device *r_dev, char *arg)
             fprintf(stderr, "Protocol [%d] \"%s\" does not take arguments \"%s\"!\n", r_dev->protocol_num, r_dev->name, arg);
         }
         p  = malloc(sizeof(*p));
+        if (!p)
+            FATAL_CALLOC("register_protocol()");
         *p = *r_dev; // copy
     }
 
@@ -481,11 +480,12 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
             if ((d->type == DATA_STRING) && !strcmp(d->key, "battery")) {
                 free(d->key);
                 d->key = strdup("battery_ok");
-                int ok = d->value && !strcmp(d->value, "OK");
-                free(d->value);
+                if (!d->key)
+                    FATAL_STRDUP("data_acquired_handler()");
+                int ok = d->value.v_ptr && !strcmp(d->value.v_ptr, "OK");
+                free(d->value.v_ptr);
                 d->type = DATA_INT;
-                d->value = malloc(sizeof(int));
-                *(int *)d->value = ok;
+                d->value.v_int = ok;
                 break;
             }
         }
@@ -495,7 +495,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
         for (data_t *d = data; d; d = d->next) {
             // Convert double type fields ending in _F to _C
             if ((d->type == DATA_DOUBLE) && str_endswith(d->key, "_F")) {
-                *(double*)d->value = fahrenheit2celsius(*(double*)d->value);
+                d->value.v_dbl = fahrenheit2celsius(d->value.v_dbl);
                 char *new_label = str_replace(d->key, "_F", "_C");
                 free(d->key);
                 d->key = new_label;
@@ -506,7 +506,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
             }
             // Convert double type fields ending in _mph to _kph
             else if ((d->type == DATA_DOUBLE) && str_endswith(d->key, "_mph")) {
-                *(double*)d->value = mph2kmph(*(double*)d->value);
+                d->value.v_dbl = mph2kmph(d->value.v_dbl);
                 char *new_label = str_replace(d->key, "_mph", "_kph");
                 free(d->key);
                 d->key = new_label;
@@ -516,7 +516,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
             }
             // Convert double type fields ending in _mi_h to _km_h
             else if ((d->type == DATA_DOUBLE) && str_endswith(d->key, "_mi_h")) {
-                *(double*)d->value = mph2kmph(*(double*)d->value);
+                d->value.v_dbl = mph2kmph(d->value.v_dbl);
                 char *new_label = str_replace(d->key, "_mi_h", "_km_h");
                 free(d->key);
                 d->key = new_label;
@@ -527,7 +527,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
             // Convert double type fields ending in _in to _mm
             else if ((d->type == DATA_DOUBLE) &&
                      (str_endswith(d->key, "_in") || str_endswith(d->key, "_inch"))) {
-                *(double*)d->value = inch2mm(*(double*)d->value);
+                d->value.v_dbl = inch2mm(d->value.v_dbl);
                 char *new_label = str_replace(str_replace(d->key, "_inch", "_in"), "_in", "_mm");
                 free(d->key);
                 d->key = new_label;
@@ -537,7 +537,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
             }
             // Convert double type fields ending in _in_h to _mm_h
             else if ((d->type == DATA_DOUBLE) && str_endswith(d->key, "_in_h")) {
-                *(double*)d->value = inch2mm(*(double*)d->value);
+                d->value.v_dbl = inch2mm(d->value.v_dbl);
                 char *new_label = str_replace(d->key, "_in_h", "_mm_h");
                 free(d->key);
                 d->key = new_label;
@@ -547,7 +547,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
             }
             // Convert double type fields ending in _inHg to _hPa
             else if ((d->type == DATA_DOUBLE) && str_endswith(d->key, "_inHg")) {
-                *(double*)d->value = inhg2hpa(*(double*)d->value);
+                d->value.v_dbl = inhg2hpa(d->value.v_dbl);
                 char *new_label = str_replace(d->key, "_inHg", "_hPa");
                 free(d->key);
                 d->key = new_label;
@@ -557,7 +557,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
             }
             // Convert double type fields ending in _PSI to _kPa
             else if ((d->type == DATA_DOUBLE) && str_endswith(d->key, "_PSI")) {
-                *(double*)d->value = psi2kpa(*(double*)d->value);
+                d->value.v_dbl = psi2kpa(d->value.v_dbl);
                 char *new_label = str_replace(d->key, "_PSI", "_kPa");
                 free(d->key);
                 d->key = new_label;
@@ -571,7 +571,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
         for (data_t *d = data; d; d = d->next) {
             // Convert double type fields ending in _C to _F
             if ((d->type == DATA_DOUBLE) && str_endswith(d->key, "_C")) {
-                *(double*)d->value = celsius2fahrenheit(*(double*)d->value);
+                d->value.v_dbl = celsius2fahrenheit(d->value.v_dbl);
                 char *new_label = str_replace(d->key, "_C", "_F");
                 free(d->key);
                 d->key = new_label;
@@ -582,7 +582,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
             }
             // Convert double type fields ending in _kph to _mph
             else if ((d->type == DATA_DOUBLE) && str_endswith(d->key, "_kph")) {
-                *(double*)d->value = kmph2mph(*(double*)d->value);
+                d->value.v_dbl = kmph2mph(d->value.v_dbl);
                 char *new_label = str_replace(d->key, "_kph", "_mph");
                 free(d->key);
                 d->key = new_label;
@@ -592,7 +592,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
             }
             // Convert double type fields ending in _km_h to _mi_h
             else if ((d->type == DATA_DOUBLE) && str_endswith(d->key, "_km_h")) {
-                *(double*)d->value = kmph2mph(*(double*)d->value);
+                d->value.v_dbl = kmph2mph(d->value.v_dbl);
                 char *new_label = str_replace(d->key, "_km_h", "_mi_h");
                 free(d->key);
                 d->key = new_label;
@@ -602,7 +602,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
             }
             // Convert double type fields ending in _mm to _inch
             else if ((d->type == DATA_DOUBLE) && str_endswith(d->key, "_mm")) {
-                *(double*)d->value = mm2inch(*(double*)d->value);
+                d->value.v_dbl = mm2inch(d->value.v_dbl);
                 char *new_label = str_replace(d->key, "_mm", "_in");
                 free(d->key);
                 d->key = new_label;
@@ -612,7 +612,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
             }
             // Convert double type fields ending in _mm_h to _in_h
             else if ((d->type == DATA_DOUBLE) && str_endswith(d->key, "_mm_h")) {
-                *(double*)d->value = mm2inch(*(double*)d->value);
+                d->value.v_dbl = mm2inch(d->value.v_dbl);
                 char *new_label = str_replace(d->key, "_mm_h", "_in_h");
                 free(d->key);
                 d->key = new_label;
@@ -622,7 +622,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
             }
             // Convert double type fields ending in _hPa to _inHg
             else if ((d->type == DATA_DOUBLE) && str_endswith(d->key, "_hPa")) {
-                *(double*)d->value = hpa2inhg(*(double*)d->value);
+                d->value.v_dbl = hpa2inhg(d->value.v_dbl);
                 char *new_label = str_replace(d->key, "_hPa", "_inHg");
                 free(d->key);
                 d->key = new_label;
@@ -632,7 +632,7 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
             }
             // Convert double type fields ending in _kPa to _PSI
             else if ((d->type == DATA_DOUBLE) && str_endswith(d->key, "_kPa")) {
-                *(double*)d->value = kpa2psi(*(double*)d->value);
+                d->value.v_dbl = kpa2psi(d->value.v_dbl);
                 char *new_label = str_replace(d->key, "_kPa", "_PSI");
                 free(d->key);
                 d->key = new_label;
@@ -863,6 +863,8 @@ void add_null_output(r_cfg_t *cfg, char *param)
 void add_dumper(r_cfg_t *cfg, char const *spec, int overwrite)
 {
     file_info_t *dumper = calloc(1, sizeof(*dumper));
+    if (!dumper)
+        FATAL_CALLOC("add_dumper()");
     list_push(&cfg->demod->dumper, dumper);
 
     parse_file_info(spec, dumper);

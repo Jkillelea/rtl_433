@@ -46,6 +46,7 @@
 #include "confparse.h"
 #include "term_ctl.h"
 #include "compat_paths.h"
+#include "fatal.h"
 
 #ifdef _WIN32
 #include <io.h>
@@ -1211,12 +1212,11 @@ int main(int argc, char **argv) {
     // Special case for in files
     if (cfg.in_files.len) {
         unsigned char *test_mode_buf = malloc(DEFAULT_BUF_LENGTH * sizeof(unsigned char));
+        if (!test_mode_buf)
+            FATAL_MALLOC("test_mode_buf");
         float *test_mode_float_buf = malloc(DEFAULT_BUF_LENGTH / sizeof(int16_t) * sizeof(float));
-        if (!test_mode_buf || !test_mode_float_buf)
-        {
-            fprintf(stderr, "Couldn't allocate read buffers!\n");
-            exit(1);
-        }
+        if (!test_mode_float_buf)
+            FATAL_MALLOC("test_mode_float_buf");
 
         if (cfg.duration > 0) {
             time(&cfg.stop_time);
@@ -1253,7 +1253,7 @@ int main(int argc, char **argv) {
             // special case for pulse data file-inputs
             if (demod->load_info.format == PULSE_OOK) {
                 while (!cfg.do_exit) {
-                    pulse_data_load(in_file, &demod->pulse_data);
+                    pulse_data_load(in_file, &demod->pulse_data, cfg.samp_rate);
                     if (!demod->pulse_data.num_pulses)
                         break;
 

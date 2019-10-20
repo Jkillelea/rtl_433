@@ -10,6 +10,7 @@
 */
 
 #include "r_util.h"
+#include "fatal.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -129,7 +130,7 @@ float inhg2hpa(float inhg)
 }
 
 
-bool str_endswith(const char *restrict str, const char *restrict suffix)
+bool str_endswith(char const *restrict str, char const *restrict suffix)
 {
     int str_len = strlen(str);
     int suffix_len = strlen(suffix);
@@ -142,10 +143,10 @@ bool str_endswith(const char *restrict str, const char *restrict suffix)
 // https://stackoverflow.com/questions/779875/what-is-the-function-to-replace-string-in-c/779960#779960
 //
 // You must free the result if result is non-NULL.
-char *str_replace(char *orig, char *rep, char *with)
+char *str_replace(char const *orig, char const *rep, char const *with)
 {
     char *result;  // the return string
-    char *ins;     // the next insert point
+    char const *ins; // the next insert point
     char *tmp;     // varies
     int len_rep;   // length of rep (the string to remove)
     int len_with;  // length of with (the string to replace rep with)
@@ -169,9 +170,10 @@ char *str_replace(char *orig, char *rep, char *with)
     }
 
     tmp = result = malloc(strlen(orig) + (len_with - len_rep) * count + 1);
-
-    if (!result)
-        return NULL;
+    if (!result) {
+        WARN_MALLOC("str_replace()");
+        return NULL; // NOTE: returns NULL on alloc failure.
+    }
 
     // first time through the loop, all the variables are set correctly
     // from here on,
@@ -190,7 +192,7 @@ char *str_replace(char *orig, char *rep, char *with)
 }
 
 // Make a more readable string for a frequency.
-const char *nice_freq (double freq)
+char const *nice_freq (double freq)
 {
   static char buf[30];
 

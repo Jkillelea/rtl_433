@@ -24,7 +24,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include "limits.h"
+#include <limits.h>
 // gethostname() needs _XOPEN_SOURCE 500 on unistd.h
 #define _XOPEN_SOURCE 500
 
@@ -52,6 +52,7 @@
 
 #include "term_ctl.h"
 #include "abuf.h"
+#include "fatal.h"
 
 #include "data.h"
 
@@ -110,14 +111,14 @@ static data_meta_type_t dmt[DATA_COUNT] = {
       .array_is_boxed           = false,
       .array_elementwise_import = NULL,
       .array_element_release    = NULL,
-      .value_release            = (value_release_fn) free },
+      .value_release            = NULL },
 
     //  DATA_DOUBLE
     { .array_element_size       = sizeof(double),
       .array_is_boxed           = false,
       .array_elementwise_import = NULL,
       .array_element_release    = NULL,
-      .value_release            = (value_release_fn) free },
+      .value_release            = NULL },
 
     //  DATA_STRING
     { .array_element_size       = sizeof(char*),
@@ -163,17 +164,23 @@ static bool import_values(void *dst, void *src, int num_values, data_type_t type
 data_array_t *data_array(int num_values, data_type_t type, void *values)
 {
     data_array_t *array = calloc(1, sizeof(data_array_t));
-    if (array) {
-        int element_size = dmt[type].array_element_size;
-        array->values = calloc(num_values, element_size);
-        if (!array->values)
-            goto alloc_error;
-        if (!import_values(array->values, values, num_values, type))
-            goto alloc_error;
-
-        array->num_values = num_values;
-        array->type = type;
+    if (!array) {
+        WARN_CALLOC("data_array()");
+        return NULL; // NOTE: returns NULL on alloc failure.
     }
+
+    int element_size = dmt[type].array_element_size;
+    array->values    = calloc(num_values, element_size);
+    if (!array->values) {
+        WARN_CALLOC("data_array()");
+        goto alloc_error;
+    }
+    if (!import_values(array->values, values, num_values, type))
+        goto alloc_error;
+
+    array->num_values = num_values;
+    array->type       = type;
+
     return array;
 
 alloc_error:
@@ -193,13 +200,15 @@ static data_t *vdata_make(data_t *first, const char *key, const char *pretty_key
     type = va_arg(ap, data_type_t);
     do {
         data_t *current;
-        void *value = NULL;
+        data_value_t value = {0};
 
         switch (type) {
         case DATA_FORMAT:
             format = strdup(va_arg(ap, char *));
-            if (!format)
+            if (!format) {
+                WARN_STRDUP("vdata_make()");
                 goto alloc_error;
+            }
             type = va_arg(ap, data_type_t);
             continue;
             break;
@@ -207,44 +216,42 @@ static data_t *vdata_make(data_t *first, const char *key, const char *pretty_key
             assert(0);
             break;
         case DATA_DATA:
-            value = va_arg(ap, data_t *);
+            value.v_ptr = va_arg(ap, data_t *);
             break;
         case DATA_INT:
-            value = malloc(sizeof(int));
-            if (value)
-                *(int *)value = va_arg(ap, int);
+            value.v_int = va_arg(ap, int);
             break;
         case DATA_DOUBLE:
-            value = malloc(sizeof(double));
-            if (value)
-                *(double *)value = va_arg(ap, double);
+            value.v_dbl = va_arg(ap, double);
             break;
         case DATA_STRING:
-            value = strdup(va_arg(ap, char *));
+            value.v_ptr = strdup(va_arg(ap, char *));
+            if (!value.v_ptr)
+                WARN_STRDUP("vdata_make()");
             break;
         case DATA_ARRAY:
-            value = va_arg(ap, data_t *);
+            value.v_ptr = va_arg(ap, data_t *);
             break;
         }
 
-        // also some null arguments are mapped to an alloc error;
-        // that's ok, because they originate (typically..) from
-        // an alloc error anyway
-        if (!value)
-            goto alloc_error;
-
         current = calloc(1, sizeof(*current));
-        if (!current)
+        if (!current) {
+            WARN_CALLOC("vdata_make()");
             goto alloc_error;
+        }
         if (prev)
             prev->next = current;
 
         current->key = strdup(key);
-        if (!current->key)
+        if (!current->key) {
+            WARN_STRDUP("vdata_make()");
             goto alloc_error;
+        }
         current->pretty_key = strdup(pretty_key ? pretty_key : key);
-        if (!current->pretty_key)
+        if (!current->pretty_key) {
+            WARN_STRDUP("vdata_make()");
             goto alloc_error;
+        }
         current->type = type;
         current->format = format;
         current->value = value;
@@ -334,7 +341,7 @@ void data_free(data_t *data)
     while (data) {
         data_t *prev_data = data;
         if (dmt[data->type].value_release)
-            dmt[data->type].value_release(data->value);
+            dmt[data->type].value_release(data->value.v_ptr);
         free(data->format);
         free(data->pretty_key);
         free(data->key);
@@ -379,7 +386,7 @@ void data_output_free(data_output_t *output)
 
 /* output helpers */
 
-void print_value(data_output_t *output, data_type_t type, void *value, char *format)
+void print_value(data_output_t *output, data_type_t type, data_value_t value, char const *format)
 {
     switch (type) {
     case DATA_FORMAT:
@@ -387,43 +394,39 @@ void print_value(data_output_t *output, data_type_t type, void *value, char *for
         assert(0);
         break;
     case DATA_DATA:
-        output->print_data(output, value, format);
+        output->print_data(output, value.v_ptr, format);
         break;
     case DATA_INT:
-        output->print_int(output, *(int *)value, format);
+        output->print_int(output, value.v_int, format);
         break;
     case DATA_DOUBLE:
-        output->print_double(output, *(double *)value, format);
+        output->print_double(output, value.v_dbl, format);
         break;
     case DATA_STRING:
-        output->print_string(output, value, format);
+        output->print_string(output, value.v_ptr, format);
         break;
     case DATA_ARRAY:
-        output->print_array(output, value, format);
+        output->print_array(output, value.v_ptr, format);
         break;
     }
 }
 
-void print_array_value(data_output_t *output, data_array_t *array, char *format, int idx)
+void print_array_value(data_output_t *output, data_array_t *array, char const *format, int idx)
 {
     int element_size = dmt[array->type].array_element_size;
-#ifdef RTL_433_NO_VLAs
-    char *buffer = alloca (element_size);
-#else
-    char buffer[element_size];
-#endif
+    data_value_t value = {0};
 
     if (!dmt[array->type].array_is_boxed) {
-        memcpy(buffer, (void **)((char *)array->values + element_size * idx), element_size);
-        print_value(output, array->type, buffer, format);
+        memcpy(&value, (char *)array->values + element_size * idx, element_size);
+        print_value(output, array->type, value, format);
     } else {
-        print_value(output, array->type, *(void **)((char *)array->values + element_size * idx), format);
+        print_value(output, array->type, *(data_value_t*)((char *)array->values + element_size * idx), format);
     }
 }
 
 /* JSON printer */
 
-static void print_json_array(data_output_t *output, data_array_t *array, char *format)
+static void print_json_array(data_output_t *output, data_array_t *array, char const *format)
 {
     fprintf(output->file, "[");
     for (int c = 0; c < array->num_values; ++c) {
@@ -434,7 +437,7 @@ static void print_json_array(data_output_t *output, data_array_t *array, char *f
     fprintf(output->file, "]");
 }
 
-static void print_json_data(data_output_t *output, data_t *data, char *format)
+static void print_json_data(data_output_t *output, data_t *data, char const *format)
 {
     bool separator = false;
     fputc('{', output->file);
@@ -450,7 +453,7 @@ static void print_json_data(data_output_t *output, data_t *data, char *format)
     fputc('}', output->file);
 }
 
-static void print_json_string(data_output_t *output, const char *str, char *format)
+static void print_json_string(data_output_t *output, const char *str, char const *format)
 {
     fprintf(output->file, "\"");
     while (*str) {
@@ -462,12 +465,12 @@ static void print_json_string(data_output_t *output, const char *str, char *form
     fprintf(output->file, "\"");
 }
 
-static void print_json_double(data_output_t *output, double data, char *format)
+static void print_json_double(data_output_t *output, double data, char const *format)
 {
     fprintf(output->file, "%.3f", data);
 }
 
-static void print_json_int(data_output_t *output, int data, char *format)
+static void print_json_int(data_output_t *output, int data, char const *format)
 {
     fprintf(output->file, "%d", data);
 }
@@ -484,8 +487,8 @@ struct data_output *data_output_json_create(FILE *file)
 {
     data_output_t *output = calloc(1, sizeof(data_output_t));
     if (!output) {
-        fprintf(stderr, "calloc() failed");
-        return NULL;
+        WARN_CALLOC("data_output_json_create()");
+        return NULL; // NOTE: returns NULL on alloc failure.
     }
 
     output->print_data   = print_json_data;
@@ -548,7 +551,7 @@ typedef struct {
 
 #define KV_SEP "_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ "
 
-static void print_kv_data(data_output_t *output, data_t *data, char *format)
+static void print_kv_data(data_output_t *output, data_t *data, char const *format)
 {
     data_output_kv_t *kv = (data_output_kv_t *)output;
 
@@ -620,7 +623,7 @@ static void print_kv_data(data_output_t *output, data_t *data, char *format)
     }
 }
 
-static void print_kv_array(data_output_t *output, data_array_t *array, char *format)
+static void print_kv_array(data_output_t *output, data_array_t *array, char const *format)
 {
     data_output_kv_t *kv = (data_output_kv_t *)output;
 
@@ -633,21 +636,21 @@ static void print_kv_array(data_output_t *output, data_array_t *array, char *for
     //fprintf(output->file, " ]");
 }
 
-static void print_kv_double(data_output_t *output, double data, char *format)
+static void print_kv_double(data_output_t *output, double data, char const *format)
 {
     data_output_kv_t *kv = (data_output_kv_t *)output;
 
     kv->column += fprintf(output->file, format ? format : "%.3f", data);
 }
 
-static void print_kv_int(data_output_t *output, int data, char *format)
+static void print_kv_int(data_output_t *output, int data, char const *format)
 {
     data_output_kv_t *kv = (data_output_kv_t *)output;
 
     kv->column += fprintf(output->file, format ? format : "%d", data);
 }
 
-static void print_kv_string(data_output_t *output, const char *data, char *format)
+static void print_kv_string(data_output_t *output, const char *data, char const *format)
 {
     data_output_kv_t *kv = (data_output_kv_t *)output;
 
@@ -670,8 +673,8 @@ struct data_output *data_output_kv_create(FILE *file)
 {
     data_output_kv_t *kv = calloc(1, sizeof(data_output_kv_t));
     if (!kv) {
-        fprintf(stderr, "calloc() failed");
-        return NULL;
+        WARN_CALLOC("data_output_kv_create()");
+        return NULL; // NOTE: returns NULL on alloc failure.
     }
 
     kv->output.print_data   = print_kv_data;
@@ -699,7 +702,7 @@ typedef struct {
     const char *separator;
 } data_output_csv_t;
 
-static void print_csv_data(data_output_t *output, data_t *data, char *format)
+static void print_csv_data(data_output_t *output, data_t *data, char const *format)
 {
     data_output_csv_t *csv = (data_output_csv_t *)output;
 
@@ -725,7 +728,7 @@ static void print_csv_data(data_output_t *output, data_t *data, char *format)
     --csv->data_recursion;
 }
 
-static void print_csv_array(data_output_t *output, data_array_t *array, char *format)
+static void print_csv_array(data_output_t *output, data_array_t *array, char const *format)
 {
     for (int c = 0; c < array->num_values; ++c) {
         if (c)
@@ -734,7 +737,7 @@ static void print_csv_array(data_output_t *output, data_array_t *array, char *fo
     }
 }
 
-static void print_csv_string(data_output_t *output, const char *str, char *format)
+static void print_csv_string(data_output_t *output, const char *str, char const *format)
 {
     data_output_csv_t *csv = (data_output_csv_t *)output;
 
@@ -766,8 +769,10 @@ static void data_output_csv_start(struct data_output *output, const char **field
     csv->separator = ",";
 
     allowed = calloc(num_fields, sizeof(const char *));
-    if (!allowed)
+    if (!allowed) {
+        WARN_CALLOC("data_output_csv_start()");
         goto alloc_error;
+    }
     memcpy(allowed, fields, sizeof(const char *) * num_fields);
 
     qsort(allowed, num_fields, sizeof(char *), compare_strings);
@@ -789,12 +794,16 @@ static void data_output_csv_start(struct data_output *output, const char **field
     num_unique_fields = i;
 
     csv->fields = calloc(num_unique_fields + 1, sizeof(const char *));
-    if (!csv->fields)
+    if (!csv->fields) {
+        WARN_CALLOC("data_output_csv_start()");
         goto alloc_error;
+    }
 
     use_count = calloc(num_unique_fields, sizeof(*use_count));
-    if (!use_count)
+    if (!use_count) {
+        WARN_CALLOC("data_output_csv_start()");
         goto alloc_error;
+    }
 
     for (i = 0; i < num_fields; ++i) {
         const char **field = bsearch(&fields[i], allowed, num_unique_fields, sizeof(const char *),
@@ -825,12 +834,12 @@ alloc_error:
     free(csv);
 }
 
-static void print_csv_double(data_output_t *output, double data, char *format)
+static void print_csv_double(data_output_t *output, double data, char const *format)
 {
     fprintf(output->file, "%.3f", data);
 }
 
-static void print_csv_int(data_output_t *output, int data, char *format)
+static void print_csv_int(data_output_t *output, int data, char const *format)
 {
     fprintf(output->file, "%d", data);
 }
@@ -847,8 +856,8 @@ struct data_output *data_output_csv_create(FILE *file)
 {
     data_output_csv_t *csv = calloc(1, sizeof(data_output_csv_t));
     if (!csv) {
-        fprintf(stderr, "calloc() failed");
-        return NULL;
+        WARN_CALLOC("data_output_csv_create()");
+        return NULL; // NOTE: returns NULL on alloc failure.
     }
 
     csv->output.print_data   = print_csv_data;
@@ -870,7 +879,7 @@ typedef struct {
     abuf_t msg;
 } data_print_jsons_t;
 
-static void format_jsons_array(data_output_t *output, data_array_t *array, char *format)
+static void format_jsons_array(data_output_t *output, data_array_t *array, char const *format)
 {
     data_print_jsons_t *jsons = (data_print_jsons_t *)output;
 
@@ -883,7 +892,7 @@ static void format_jsons_array(data_output_t *output, data_array_t *array, char 
     abuf_cat(&jsons->msg, "]");
 }
 
-static void format_jsons_object(data_output_t *output, data_t *data, char *format)
+static void format_jsons_object(data_output_t *output, data_t *data, char const *format)
 {
     data_print_jsons_t *jsons = (data_print_jsons_t *)output;
 
@@ -901,7 +910,7 @@ static void format_jsons_object(data_output_t *output, data_t *data, char *forma
     abuf_cat(&jsons->msg, "}");
 }
 
-static void format_jsons_string(data_output_t *output, const char *str, char *format)
+static void format_jsons_string(data_output_t *output, const char *str, char const *format)
 {
     data_print_jsons_t *jsons = (data_print_jsons_t *)output;
 
@@ -932,7 +941,7 @@ static void format_jsons_string(data_output_t *output, const char *str, char *fo
     jsons->msg.left = size;
 }
 
-static void format_jsons_double(data_output_t *output, double data, char *format)
+static void format_jsons_double(data_output_t *output, double data, char const *format)
 {
     data_print_jsons_t *jsons = (data_print_jsons_t *)output;
     // use scientific notation for very big/small values
@@ -950,7 +959,7 @@ static void format_jsons_double(data_output_t *output, double data, char *format
     }
 }
 
-static void format_jsons_int(data_output_t *output, int data, char *format)
+static void format_jsons_int(data_output_t *output, int data, char const *format)
 {
     data_print_jsons_t *jsons = (data_print_jsons_t *)output;
     abuf_printf(&jsons->msg, "%d", data);
@@ -1055,7 +1064,7 @@ typedef struct {
     char hostname[_POSIX_HOST_NAME_MAX + 1];
 } data_output_syslog_t;
 
-static void print_syslog_data(data_output_t *output, data_t *data, char *format)
+static void print_syslog_data(data_output_t *output, data_t *data, char const *format)
 {
     data_output_syslog_t *syslog = (data_output_syslog_t *)output;
 
@@ -1102,8 +1111,8 @@ struct data_output *data_output_syslog_create(const char *host, const char *port
 {
     data_output_syslog_t *syslog = calloc(1, sizeof(data_output_syslog_t));
     if (!syslog) {
-        fprintf(stderr, "calloc() failed");
-        return NULL;
+        WARN_CALLOC("data_output_syslog_create()");
+        return NULL; // NOTE: returns NULL on alloc failure.
     }
 #ifdef _WIN32
     WSADATA wsa;

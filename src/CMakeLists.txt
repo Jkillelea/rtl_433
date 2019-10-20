@@ -32,6 +32,7 @@ add_executable(rtl_433
     devices/ambient_weather.c
     devices/ambientweather_tx8300.c
     devices/ambientweather_wh31e.c
+    devices/auriol_hg02832.c
     devices/blyss.c
     devices/brennenstuhl_rcs_2044.c
     devices/bresser_3ch.c
@@ -100,6 +101,7 @@ add_executable(rtl_433
     devices/newkaku.c
     devices/nexa.c
     devices/nexus.c
+    devices/norgo.c
     devices/oil_standard.c
     devices/oil_watchman.c
     devices/opus_xt300.c
@@ -129,6 +131,7 @@ add_executable(rtl_433
     devices/thermopro_tp11.c
     devices/thermopro_tp12.c
     devices/tpms_citroen.c
+    devices/tpms_elantra2012.c
     devices/tpms_ford.c
     devices/tpms_jansite.c
     devices/tpms_pmv107j.c

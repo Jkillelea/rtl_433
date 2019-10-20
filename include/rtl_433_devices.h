@@ -146,8 +146,10 @@
     DECL(esic_emt7110) \
     DECL(gt_tmbbq05) \
     DECL(gt_wt_03) \
+    DECL(norgo) \
+    DECL(tpms_elantra2012) \
+    DECL(auriol_hg02832) \
     DECL(custom_thermistor) \
-
     /* Add new decoders here. */
 
 #define DECL(name) extern r_device name;
