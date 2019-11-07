@@ -26,7 +26,9 @@
 #include <stdbool.h>
 #include <limits.h>
 // gethostname() needs _XOPEN_SOURCE 500 on unistd.h
+#ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 500
+#endif
 
 #ifndef _MSC_VER
 #include <unistd.h>
@@ -154,7 +156,7 @@ static bool import_values(void *dst, void *src, int num_values, data_type_t type
             }
         }
     } else {
-        memcpy(dst, src, element_size * num_values);
+        memcpy(dst, src, (size_t)element_size * num_values);
     }
     return true; // error is returned early
 }
@@ -196,14 +198,20 @@ static data_t *vdata_make(data_t *first, const char *key, const char *pretty_key
     data_t *prev = first;
     while (prev && prev->next)
         prev = prev->next;
-    char *format = false;
+    char *format = NULL;
     type = va_arg(ap, data_type_t);
     do {
         data_t *current;
         data_value_t value = {0};
+        // store explicit release function, CSA checker gets confused without this
+        value_release_fn value_release = NULL; // appease CSA checker
 
         switch (type) {
         case DATA_FORMAT:
+            if (format) {
+                fprintf(stderr, "vdata_make() format type used twice\n");
+                goto alloc_error;
+            }
             format = strdup(va_arg(ap, char *));
             if (!format) {
                 WARN_STRDUP("vdata_make()");
@@ -216,6 +224,7 @@ static data_t *vdata_make(data_t *first, const char *key, const char *pretty_key
             assert(0);
             break;
         case DATA_DATA:
+            value_release = (value_release_fn)data_free; // appease CSA checker
             value.v_ptr = va_arg(ap, data_t *);
             break;
         case DATA_INT:
@@ -225,22 +234,38 @@ static data_t *vdata_make(data_t *first, const char *key, const char *pretty_key
             value.v_dbl = va_arg(ap, double);
             break;
         case DATA_STRING:
+            value_release = (value_release_fn)free; // appease CSA checker
             value.v_ptr = strdup(va_arg(ap, char *));
             if (!value.v_ptr)
                 WARN_STRDUP("vdata_make()");
             break;
         case DATA_ARRAY:
+            value_release = (value_release_fn)data_array_free; // appease CSA checker
             value.v_ptr = va_arg(ap, data_t *);
             break;
+        default:
+            fprintf(stderr, "vdata_make() bad data type (%d)\n", type);
+            goto alloc_error;
         }
 
         current = calloc(1, sizeof(*current));
         if (!current) {
             WARN_CALLOC("vdata_make()");
+            if (value_release) // could use dmt[type].value_release
+                value_release(value.v_ptr);
             goto alloc_error;
         }
+        current->type   = type;
+        current->format = format;
+        format          = NULL; // consumed
+        current->value  = value;
+        current->next   = NULL;
+
         if (prev)
             prev->next = current;
+        prev = current;
+        if (!first)
+            first = current;
 
         current->key = strdup(key);
         if (!current->key) {
@@ -252,27 +277,24 @@ static data_t *vdata_make(data_t *first, const char *key, const char *pretty_key
             WARN_STRDUP("vdata_make()");
             goto alloc_error;
         }
-        current->type = type;
-        current->format = format;
-        current->value = value;
-        current->next = NULL;
 
-        prev = current;
-        if (!first)
-            first = current;
-
+        // next args
         key = va_arg(ap, const char *);
         if (key) {
             pretty_key = va_arg(ap, const char *);
             type = va_arg(ap, data_type_t);
-            format = NULL;
         }
     } while (key);
     va_end(ap);
+    if (format) {
+        fprintf(stderr, "vdata_make() format type without data\n");
+        goto alloc_error;
+    }
 
     return first;
 
 alloc_error:
+    free(format); // if not consumed
     data_free(first);
     return NULL;
 }

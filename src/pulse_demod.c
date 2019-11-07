@@ -28,9 +28,13 @@ static int account_event(r_device *device, int ret)
         device->decode_ok += 1;
         device->decode_messages += ret;
     }
-    else {
+    else if (ret >= DECODE_FAIL_SANITY) {
         device->decode_fails[-ret] += 1;
         ret = 0;
+    }
+    else {
+        fprintf(stderr, "Decoder gave invalid return value %d: notify maintainer\n", ret);
+        exit(1);
     }
     return ret;
 }

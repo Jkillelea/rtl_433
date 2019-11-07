@@ -21,11 +21,13 @@
 #include "r_private.h"
 #include "r_device.h"
 #include "pulse_demod.h"
+#include "pulse_detect_fsk.h"
 #include "sdr.h"
 #include "data.h"
 #include "list.h"
 #include "optparse.h"
 #include "output_mqtt.h"
+#include "output_influx.h"
 #include "compat_time.h"
 #include "fatal.h"
 
@@ -77,6 +79,7 @@ void r_init_cfg(r_cfg_t *cfg)
     cfg->out_block_size  = DEFAULT_BUF_LENGTH;
     cfg->samp_rate       = DEFAULT_SAMPLE_RATE;
     cfg->conversion_mode = CONVERT_NATIVE;
+    cfg->fsk_pulse_detect_mode = FSK_PULSE_DETECT_AUTO;
 
     list_ensure_size(&cfg->in_files, 100);
     list_ensure_size(&cfg->output_handler, 16);
@@ -223,20 +226,22 @@ void update_protocols(r_cfg_t *cfg)
 
 void calc_rssi_snr(r_cfg_t *cfg, pulse_data_t *pulse_data)
 {
-    float asnr   = (float)pulse_data->ook_high_estimate / ((float)pulse_data->ook_low_estimate + 1);
+    float ook_high_estimate = pulse_data->ook_high_estimate > 0 ? pulse_data->ook_high_estimate : 1;
+    float ook_low_estimate = pulse_data->ook_low_estimate > 0 ? pulse_data->ook_low_estimate : 1;
+    float asnr   = ook_high_estimate / ook_low_estimate;
     float foffs1 = (float)pulse_data->fsk_f1_est / INT16_MAX * cfg->samp_rate / 2.0;
     float foffs2 = (float)pulse_data->fsk_f2_est / INT16_MAX * cfg->samp_rate / 2.0;
     pulse_data->freq1_hz = (foffs1 + cfg->center_frequency);
     pulse_data->freq2_hz = (foffs2 + cfg->center_frequency);
     // NOTE: for (CU8) amplitude is 10x (because it's squares)
     if (cfg->demod->sample_size == 1) { // amplitude (CU8)
-        pulse_data->rssi_db = 10.0f * log10f(pulse_data->ook_high_estimate) - 42.1442f; // 10*log10f(16384.0f)
-        pulse_data->noise_db = 10.0f * log10f(pulse_data->ook_low_estimate + 1) - 42.1442f; // 10*log10f(16384.0f)
+        pulse_data->rssi_db = 10.0f * log10f(ook_high_estimate) - 42.1442f; // 10*log10f(16384.0f)
+        pulse_data->noise_db = 10.0f * log10f(ook_low_estimate) - 42.1442f; // 10*log10f(16384.0f)
         pulse_data->snr_db  = 10.0f * log10f(asnr);
     }
     else { // magnitude (CS16)
-        pulse_data->rssi_db = 20.0f * log10f(pulse_data->ook_high_estimate) - 84.2884f; // 20*log10f(16384.0f)
-        pulse_data->noise_db = 20.0f * log10f(pulse_data->ook_low_estimate + 1) - 84.2884f; // 20*log10f(16384.0f)
+        pulse_data->rssi_db = 20.0f * log10f(ook_high_estimate) - 84.2884f; // 20*log10f(16384.0f)
+        pulse_data->noise_db = 20.0f * log10f(ook_low_estimate) - 84.2884f; // 20*log10f(16384.0f)
         pulse_data->snr_db  = 20.0f * log10f(asnr);
     }
 }
@@ -843,6 +848,11 @@ void add_mqtt_output(r_cfg_t *cfg, char *param)
     fprintf(stderr, "Publishing MQTT data to %s port %s\n", host, port);
 
     list_push(&cfg->output_handler, data_output_mqtt_create(host, port, opts, cfg->dev_query));
+}
+
+void add_influx_output(r_cfg_t *cfg, char *param)
+{
+    list_push(&cfg->output_handler, data_output_influx_create(param));
 }
 
 void add_syslog_output(r_cfg_t *cfg, char *param)

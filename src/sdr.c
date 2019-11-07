@@ -368,7 +368,7 @@ static int soapysdr_set_bandwidth(SoapySDRDevice *dev, uint32_t bandwidth)
 static int soapysdr_direct_sampling(SoapySDRDevice *dev, int on)
 {
     int r = 0;
-    char *value, *set_value;
+    char const *value, *set_value;
     if (on == 0)
         value = "0";
     else if (on == 1)
@@ -390,7 +390,7 @@ static int soapysdr_direct_sampling(SoapySDRDevice *dev, int on)
         fprintf(stderr, "Enabled direct sampling mode, input 1/I.\n");}
     if (atoi(set_value) == 2) {
         fprintf(stderr, "Enabled direct sampling mode, input 2/Q.\n");}
-    if (on == 3) {
+    if (atoi(set_value) == 3) {
         fprintf(stderr, "Enabled no-mod direct sampling mode.\n");}
     return r;
 }
@@ -714,7 +714,7 @@ static int soapysdr_read_loop(sdr_dev_t *dev, sdr_read_cb_t cb, void *ctx, uint3
         // rescale cs16 buffer
         if (dev->fullScale >= 2047.0 && dev->fullScale <= 2048.0) {
             for (i = 0; i < n_read * 2; ++i)
-                buffer[i] <<= 4;
+                buffer[i] *= 16; // prevent left shift of negative value
         }
         else if (dev->fullScale < 32767.0) {
             int upscale = 32768 / dev->fullScale;

@@ -50,6 +50,27 @@ enum package_types {
     PULSE_DATA_FSK = 2,
 };
 
+/// state data for pulse_FSK_detect()
+typedef struct {
+    unsigned int fsk_pulse_length; ///< Counter for internal FSK pulse detection
+    enum {
+        PD_FSK_STATE_INIT  = 0, ///< Initial frequency estimation
+        PD_FSK_STATE_FH    = 1, ///< High frequency (pulse)
+        PD_FSK_STATE_FL    = 2, ///< Low frequency (gap)
+        PD_FSK_STATE_ERROR = 3  ///< Error - stay here until cleared
+    } fsk_state;
+
+    int fm_f1_est; ///< Estimate for the F1 frequency for FSK
+    int fm_f2_est; ///< Estimate for the F2 frequency for FSK
+
+    int16_t var_test_max;
+    int16_t var_test_min;
+    int16_t maxx;
+    int16_t minn;
+    int16_t midd;
+    int skip_samples;
+} pulse_FSK_state_t;
+
 typedef struct pulse_detect pulse_detect_t;
 
 /// Clear the content of a pulse_data_t structure.
@@ -92,7 +113,7 @@ void pulse_detect_free(pulse_detect_t *pulse_detect);
 /// @return 0 if all input sample data is processed
 /// @return 1 if OOK package is detected (but all sample data is still not completely processed)
 /// @return 2 if FSK package is detected (but all sample data is still not completely processed)
-int pulse_detect_package(pulse_detect_t *pulse_detect, int16_t const *envelope_data, int16_t const *fm_data, int len, int16_t level_limit, uint32_t samp_rate, uint64_t sample_offset, pulse_data_t *pulses, pulse_data_t *fsk_pulses);
+int pulse_detect_package(pulse_detect_t *pulse_detect, int16_t const *envelope_data, int16_t const *fm_data, int len, int16_t level_limit, uint32_t samp_rate, uint64_t sample_offset, pulse_data_t *pulses, pulse_data_t *fsk_pulses, unsigned fpdm);
 
 /// Analyze and print result.
 void pulse_analyzer(pulse_data_t *data, int package_type);
