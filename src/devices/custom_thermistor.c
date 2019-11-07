@@ -30,8 +30,16 @@ static int thermistor_decode_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     // Sent LSBfirst
     payload = (b[5] << 8*0) | (b[6] << 8*1) | (b[7] << 8*2) | (b[8] << 8*3);
 
+    // fraction of VDD
     double vfrac = ((double) payload) / 1023.0;
-    double Rth   = -(vfrac*R1)/(vfrac-1);
+
+    // out of bounds voltage reading from ADC -> something garbeled
+    if (vfrac < 0 || 1 < vfrac)
+	    return 0;
+
+    // Thermistor resistance
+    double Rth = -(vfrac*R1)/(vfrac-1);
+    // Thermistor characteristic equation
     double temperature = 1/(1/T25 + log(Rth/R25)/B25) - 273.15;
 
     data = data_make(
