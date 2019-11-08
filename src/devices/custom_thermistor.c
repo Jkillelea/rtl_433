@@ -11,24 +11,34 @@ static const double B25 = 3435.0;
 static int thermistor_decode_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
     data_t  *data;
     uint8_t *b;
-    int      id;
+    unsigned header;
     int      len;
+    int      id;
     int      payload;
 
-    // bitbuffer_print(bitbuffer);
+    if (bitbuffer->bits_per_row[0] < 73)
+        return 0;
+    // if (bitbuffer->bits_per_row[0] > 70)
+    //     return 0;
 
-    if (bitbuffer->bits_per_row[0] < 65)
-        return 0;
-    if (bitbuffer->bits_per_row[0] > 70)
-        return 0;
 
     b = bitbuffer->bb[0];
 
-    id  = (b[0] << 8*3) | (b[1] << 8*2) | (b[2] << 8*1) | (b[3]);
+    // check ID
+    header = (b[0] << 8*3) | (b[1] << 8*2) | (b[2] << 8*1) | (b[3]);
+    if (header != 0xAAA10105)
+	    return 0;
+
+    // bitbuffer_print(bitbuffer);
+
+    // Following data length
     len = b[4];
 
+    // ID number
+    id = b[5];
+
     // Sent LSBfirst
-    payload = (b[5] << 8*0) | (b[6] << 8*1) | (b[7] << 8*2) | (b[8] << 8*3);
+    payload = (b[6] << 8*0) | (b[7] << 8*1) | (b[8] << 8*2) | (b[9] << 8*3);
 
     // fraction of VDD
     double vfrac = ((double) payload) / 1023.0;
@@ -43,12 +53,13 @@ static int thermistor_decode_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     double temperature = 1/(1/T25 + log(Rth/R25)/B25) - 273.15;
 
     data = data_make(
-            "model", "",   DATA_STRING, _X("Custom Thermistor", "Custom Thermistor"),
-            "id",   "ID (16bit)",       DATA_FORMAT, "0x%x", DATA_INT,    id,
-            "len",  "Len (8bit)",       DATA_FORMAT, "0x%x", DATA_INT,    len,
-            "data", "Raw Data (32bit)", DATA_FORMAT, "%d",   DATA_INT,    payload,
-            "data", "temperature_C",    DATA_FORMAT, "%f",   DATA_DOUBLE, temperature,
-            // "data",  "vfrac (32bit)", DATA_FORMAT, "%f",   DATA_DOUBLE, vfrac,
+            "model", "", DATA_STRING, _X("Custom Thermistor", "Custom Thermistor"),
+            "header",        "header (32bit)", DATA_FORMAT, "0x%x", DATA_INT,    header,
+            "len",           "Len (8bit)",     DATA_FORMAT, "0x%x", DATA_INT,    len,
+            "temperature_C", "temperature_C",  DATA_FORMAT, "%f",   DATA_DOUBLE, temperature,
+            "id",            "ID (8)",         DATA_FORMAT, "%d",   DATA_INT,    id,
+            // "raw",    "Raw Data (32bit)", DATA_FORMAT, "%d",   DATA_INT, payload,
+            // "vfrac", "vfrac (32bit)", DATA_FORMAT, "%f",   DATA_DOUBLE, vfrac,
             NULL);
 
     decoder_output_data(decoder, data);
