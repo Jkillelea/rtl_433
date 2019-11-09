@@ -1359,8 +1359,12 @@ int main(int argc, char **argv) {
                     || demod->load_info.format == S16_AM
                     || demod->load_info.format == S16_FM) {
                 demod->sample_size = sizeof(uint8_t); // CU8, AM, FM
-            } else {
+            } else if (demod->load_info.format == CS16_IQ
+                    || demod->load_info.format == CF32_IQ) {
                 demod->sample_size = sizeof(int16_t); // CF32, CS16
+            } else {
+                fprintf(stderr, "Input format invalid: %s\n", file_info_string(&demod->load_info));
+                break;
             }
             if (cfg->verbosity) {
                 fprintf(stderr, "Input format: %s\n", file_info_string(&demod->load_info));
@@ -1395,7 +1399,7 @@ int main(int argc, char **argv) {
                 if (demod->load_info.format == CF32_IQ) {
                     n_read = fread(test_mode_float_buf, sizeof(float), DEFAULT_BUF_LENGTH / 2, in_file);
                     // clamp float to [-1,1] and scale to Q0.15
-                    for(unsigned long n = 0; n < n_read; n++) {
+                    for (unsigned long n = 0; n < n_read; n++) {
                         int s_tmp = test_mode_float_buf[n] * INT16_MAX;
                         if (s_tmp < -INT16_MAX)
                             s_tmp = -INT16_MAX;
