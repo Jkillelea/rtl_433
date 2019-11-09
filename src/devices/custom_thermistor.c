@@ -57,7 +57,7 @@ static int thermistor_decode_callback(r_device *decoder, bitbuffer_t *bitbuffer)
             // "header",        "header (32bit)", DATA_FORMAT, "0x%x", DATA_INT,    header,
             "len",           "Len (8bit)",     DATA_FORMAT, "0x%x", DATA_INT,    len,
             "temperature_C", "temperature_C",  DATA_FORMAT, "%f",   DATA_DOUBLE, temperature,
-            "id",            "ID (8)",         DATA_FORMAT, "%d",   DATA_INT,    id,
+            "id",            "ID (8bit)",      DATA_FORMAT, "%d",   DATA_INT,    id,
             // "raw",    "Raw Data (32bit)", DATA_FORMAT, "%d",   DATA_INT, payload,
             // "vfrac", "vfrac (32bit)", DATA_FORMAT, "%f",   DATA_DOUBLE, vfrac,
             NULL);
