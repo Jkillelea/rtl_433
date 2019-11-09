@@ -88,8 +88,7 @@ typedef struct data {
     @param key Name of the first value to put in.
     @param pretty_key Pretty name for the key. Use "" if to omit pretty label for this field completely,
                       or NULL if to use key name for it.
-    @param type Type of the first value to put in.
-    @param ... The value of the first value to put in, followed by the rest of the
+    @param ... Type and then value of the item to put in, followed by the rest of the
                key-type-values. The list is terminated with a NULL.
 
     @return A constructed data_t* object or NULL if there was a memory allocation error.
@@ -110,6 +109,8 @@ data_t *data_prepend(data_t *first, const char *key, const char *pretty_key, ...
 
 /** Constructs an array from given data of the given uniform type.
 
+    @param num_values The number of values to be copied.
+    @param type The type of values to be copied.
     @param ptr The contents pointed by the argument are copied in.
 
     @return The constructed data array object, typically placed inside a data_t or NULL
