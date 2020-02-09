@@ -153,7 +153,7 @@ Silvercrest Remote Control
 Rubicson Temperature Sensor
 .TP
 [ \fB03\fI\fP ]
-Prologue Temperature Sensor
+Prologue, FreeTec NC\-7104, NC\-7159\-675 temperature sensor
 .TP
 [ \fB04\fI\fP ]
 Waveman Switch Transmitter
@@ -195,7 +195,7 @@ Cardin S466\-TX2
 Fine Offset Electronics, WH2, WH5, Telldus Temperature/Humidity/Rain Sensor
 .TP
 [ \fB19\fI\fP ]
-Nexus Temperature & Humidity Sensor
+Nexus, FreeTec NC\-7345, NX\-3980 temperature/humidity sensor
 .TP
 [ \fB20\fI\fP ]
 Ambient Weather Temperature Sensor
@@ -273,7 +273,7 @@ emonTx OpenEnergyMonitor
 HT680 Remote control
 .TP
 [ \fB47\fI\fP ]
-Conrad S3318P Temperature & Humidity Sensor
+Conrad S3318P, FreeTec NC\-5849\-913 temperature humidity sensor
 .TP
 [ \fB48\fI\fP ]
 Akhan 100F14 remote keyless entry
@@ -345,7 +345,7 @@ Maverick ET\-732/733 BBQ Sensor
 * RF\-tech
 .TP
 [ \fB73\fI\fP ]
-LaCrosse TX141\-Bv2, TX141TH\-Bv2, TX141\-Bv3, TX141W sensor
+LaCrosse TX141\-Bv2, TX141TH\-Bv2, TX141\-Bv3, TX141W, TX145wsdth sensor
 .TP
 [ \fB74\fI\fP ]
 Acurite 00275rm,00276rm Temp/Humidity with optional probe
@@ -381,7 +381,7 @@ Oil Ultrasonic STANDARD ASK
 Thermopro TP11 Thermometer
 .TP
 [ \fB85\fI\fP ]
-Solight TE44
+Solight TE44/TE66, EMOS E0107T, NX\-6876\-917
 .TP
 [ \fB86\fI\fP ]
 Wireless Smoke and Heat Detector GS 558
@@ -399,7 +399,7 @@ Ford TPMS
 Renault TPMS
 .TP
 [ \fB91\fI\fP ]
-inFactory
+inFactory, FreeTec NC\-3982\-913 temperature humidity sensor
 .TP
 [ \fB92\fI\fP ]
 FT\-004\-B Temperature Sensor
@@ -441,7 +441,7 @@ Sensible Living Mini\-Plant Moisture Sensor
 Wireless M\-Bus, Mode C&T, 100kbps (\-f 868950000 \-s 1200000)
 .TP
 [ \fB105\fI\fP ]
-* Wireless M\-Bus, Mode S, 32.768kbps (\-f 868300000 \-s 1000000)
+Wireless M\-Bus, Mode S, 32.768kbps (\-f 868300000 \-s 1000000)
 .TP
 [ \fB106\fI\fP ]
 * Wireless M\-Bus, Mode R, 4.8kbps (\-f 868330000)
@@ -465,7 +465,7 @@ Emos TTX201 Temperature Sensor
 Ambient Weather TX\-8300 Temperature/Humidity Sensor
 .TP
 [ \fB113\fI\fP ]
-Ambient Weather WH31E Thermo\-Hygrometer Sensor
+Ambient Weather WH31E Thermo\-Hygrometer Sensor, EcoWitt WH40 rain gauge
 .TP
 [ \fB114\fI\fP ]
 Maverick et73
@@ -516,7 +516,7 @@ DirecTV RC66RX Remote Control
 * Eurochron temperature and humidity sensor
 .TP
 [ \fB130\fI\fP ]
-* IKEA Sparsnäs Energy Meter Monitor
+IKEA Sparsnäs Energy Meter Monitor
 .TP
 [ \fB131\fI\fP ]
 Microchip HCS200 KeeLoq Hopping Encoder based remotes
@@ -562,6 +562,15 @@ TBH weather sensor
 .TP
 [ \fB145\fI\fP ]
 WS2032 weather station
+.TP
+[ \fB146\fI\fP ]
+Auriol AFW2A1 temperature/humidity sensor
+.TP
+[ \fB147\fI\fP ]
+TFA Drop Rain Gauge 30.3233.01
+.TP
+[ \fB148\fI\fP ]
+DSC Security Contact (WS4945)
 
 * Disabled by default, use \-R n or \-G
 .SS "Input device selection"
@@ -759,6 +768,12 @@ The topic string will expand keys like [/model]
 E.g. \-F "mqtt://localhost:1883,user=USERNAME,pass=PASSWORD,retain=0,devices=rtl_433[/id]"
 .RE
 .RS
+With MQTT each rtl_433 instance needs a distinct driver selection. The MQTT Client\-ID is computed from the driver string.
+.RE
+.RS
+If you use multiple RTL\-SDR, perhaps set a serial and select by that (helps not to get the wrong antenna).
+.RE
+.RS
 Specify InfluxDB 2.0 server with e.g. \-F "influx://localhost:9999/api/v2/write?org=<org>&bucket=<bucket>,token=<authtoken>"
 .RE
 .RS
@@ -772,7 +787,7 @@ Specify host/port for syslog with e.g. \-F syslog:127.0.0.1:1514
 .RE
 .SS "Meta information option"
 .TP
-[ \fB\-M\fI time[:<options>]|protocol|level|stats|bits|newmodel\fP ]
+[ \fB\-M\fI time[:<options>]|protocol|level|stats|bits|oldmodel\fP ]
 Add various metadata to every output line.
 .RS
 Use "time" to add current date and time meta data (preset for live inputs).
@@ -819,10 +834,8 @@ Use "stats[:[<level>][:<interval>]]" to report statistics (default: 600 seconds)
 .RS
 Use "bits" to add bit representation to code outputs (for debug).
 .RE
-
-Note:	Use "newmodel" to transition to new model keys. This will become the default someday.
 .RS
-A table of changes and discussion is at https://github.com/merbanan/rtl_433/pull/986.
+Note: You can use "oldmodel" to get the old model keys. This will be removed shortly.
 .RE
 .SS "Read file option"
 .TP

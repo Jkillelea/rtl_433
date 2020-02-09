@@ -593,7 +593,7 @@ static int fineoffset_WH51_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     sprintf(id, "%02x%02x%02x", b[1], b[2], b[3]);
     int boost           = (b[4] & 0xe0) >> 5;
     int battery_mv      = (b[4] & 0x1f) * 100;
-    float battery_level = (battery_mv - 700) / 900; // assume 1.6V (100%) to 0.7V (0%) range
+    float battery_level = (battery_mv - 700) / 900.0; // assume 1.6V (100%) to 0.7V (0%) range
     int ad_raw          = (((int)b[7] & 0x01) << 8) | (int)b[8];
     int moisture        = b[6];
 
@@ -602,7 +602,7 @@ static int fineoffset_WH51_callback(r_device *decoder, bitbuffer_t *bitbuffer)
             "model",            "",                 DATA_STRING, "Fineoffset-WH51",
             "id",               "ID",               DATA_STRING, id,
             "battery_ok",       "Battery level",    DATA_DOUBLE, battery_level,
-            "battery_mV",       "Battery",          DATA_FORMAT, "%d mV", DATA_DOUBLE, battery_mv,
+            "battery_mV",       "Battery",          DATA_FORMAT, "%d mV", DATA_INT, battery_mv,
             "moisture",         "Moisture",         DATA_FORMAT, "%u %%", DATA_INT, moisture,
             "boost",            "Transmission boost", DATA_INT, boost,
             "ad_raw",           "AD raw",           DATA_INT, ad_raw,
