@@ -1,8 +1,17 @@
 /** @file
-    Acurite weather stations and temperature / humidity sensors
+    Acurite weather stations and temperature / humidity sensors.
 
     Copyright (c) 2015, Jens Jenson, Helge Weissig, David Ray Thompson, Robert Terzi
 
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+
+*/
+/**
+Acurite weather stations and temperature / humidity sensors.
     Devices decoded:
     - 5-n-1 weather sensor, Model; VN1TXC, 06004RM
     - 5-n-1 pro weather sensor, Model: 06014RM
@@ -174,7 +183,7 @@ static int acurite_th_decode(r_device *decoder, bitbuffer_t *bitbuffer)
         // multiplied by 10 using the 4th - 6th nybbles (bytes 1 & 2)
         // negative values are recovered by sign extend from int16_t.
         int temp_raw = (int16_t)(((bb[1] & 0x0f) << 12) | (bb[2] << 4));
-        tempc        = (temp_raw >> 4) * 0.1;
+        tempc        = (temp_raw >> 4) * 0.1f;
         id           = bb[0];
         status       = (bb[1] & 0xf0) >> 4;
         battery_low  = status & 0x8;
@@ -221,7 +230,7 @@ Somewhat similar to 592TXR and 5-n-1 weather stations.
 Same pulse characteristics. checksum, and parity checking on data bytes.
 
     0   1   2   3   4   5   6   7   8
-    CI II  BB  HH  ST  TT  LL  DD? KK
+    CI II  BB  HH  ST  TT  LL  DD  KK
 
 - C = Channel
 - I = ID
@@ -265,25 +274,20 @@ Byte 5 - Temperature LSB (7 bits, 8th is parity)
 - 0x80 - even parity
 - 0x7F - Temperature least significant 7 bits
 
-Byte 6 - Lightning Strike count (7 bits, 8th is parity)
+Byte 6 - Lightning Strike count (7 of 8 bit, 8th is parity)
 - 0x80 - even parity
-- 0x7F - strike count (wraps at 127)
-   Stored in EEPROM (or something non-volatile)
-   @todo Does it go from 127 to 1, or to 0?
+- 0x7F - strike count (upper 7 bits) wraps at 255 -> 0
 
-Byte 7 - Edge of Storm Distance Approximation
-- Bits PSSDDDDD  (P = Parity, S = Status, D = Distance
+
+Byte 7 - Edge of Storm Distance Approximation & other bits
+- Bits PLRDDDDD  (P = Parity, S = Status, D = Distance
 - 0x80 - even parity
-- 0x40 - USSB1 (unknown strike status bit) - (possible activity?)
-   currently decoded into "ussb1" output field
-   @todo needs understanding
+- 0x40 - LSB of 8 bit strike counter
 - 0x20 - RFI (radio frequency interference)
-   @todo needs cross-checking with light and/or console
 - 0x1F - distance to edge of storm (theory)
    value 0x1f is possible invalid value indication (value at power up)
-   @todo determine if miles, km, or something else
-   Note: Distance sometimes goes to 0 right after strike counter increment.
-         Status bits might indicate validity of distance.
+   @todo determine mapping function/table.
+
 
 Byte 8 - checksum. 8 bits, no parity.
 
@@ -294,14 +298,14 @@ Data fields:
     Somewhat correlates with the Yellow LED, but stays set longer
     Short periods of RFI on is normal
     long periods of RFI means interference, solid yellow, relocate sensor
-- Strike count - count of detection events, 7 bits, non-volatile
+- Strike count - count of detection events, 8 bits, non-volatile
+    counts up to 255, wraps back to 0.
+    Stored in EEPROM (or something non-volatile), doesn't reset at power up
 - Distance to edge of storm - See AS3935 documentation.
     sensor will make a distance estimate with each strike event.
     Units unknown, data needed from people with Acurite consoles
     0x1f (31) is invalid/undefined value, consumers should check for this.
-- USSB1 - Unknown Strike Status Bit
-    May indicate validity of distance estimate, cleared after sensor beeps
-    Might need to also correlate against RFI bit.
+    Only 5 bits available, needs to cover range of 25 miles/40 KM per spec.
 - exception - bits that were invariant for me have changed.
     save raw_msg for further examination.
 
@@ -343,11 +347,12 @@ static int acurite_6045_decode(r_device *decoder, bitbuffer_t *bitbuffer, unsign
     // Device Specification: -40 to 158 F  / -40 to 70 C
     // Available range given encoding with 12 bits -150.0 F to +259.6 F
     int temp_raw = ((bb[4] & 0x1F) << 7) | (bb[5] & 0x7F);
-    tempf = (temp_raw - 1500) * 0.1;
-    strike_count = bb[6] & 0x7f;
+    tempf = (temp_raw - 1500) * 0.1f;
+
+    // Strike count is 8 bits, LSB in following byte
+    strike_count = ((bb[6] & 0x7f) << 1) | ((bb[7] & 0x40) >> 6);
     strike_distance = bb[7] & 0x1f;
     rfi_detect = (bb[7] & 0x20) == 0x20;
-    ussb1 = (bb[7] & 0x40) == 0x40;
     l_status = (bb[7] & 0x60) >> 5;
 
     /*
@@ -396,7 +401,6 @@ static int acurite_6045_decode(r_device *decoder, bitbuffer_t *bitbuffer, unsign
             "storm_dist",       "storm_distance",   DATA_INT,    strike_distance,
             "active",           "active_mode",      DATA_INT,    active,    // @todo convert to bool
             "rfi",              "rfi_detect",       DATA_INT,    rfi_detect,     // @todo convert to bool
-            "ussb1",            "unk_status1",      DATA_INT,    ussb1,    // @todo convert to bool
             "exception",        "data_exception",   DATA_INT,    exception,    // @todo convert to bool
             "raw_msg",          "raw_message",      DATA_STRING, raw_str,
             NULL);
@@ -583,7 +587,7 @@ static int acurite_txr_decode(r_device *decoder, bitbuffer_t *bitbuffer)
 
                 // range -40 to 158 F
                 int temp_raw = (bb[4] & 0x0F) << 7 | (bb[5] & 0x7F);
-                tempf = (temp_raw - 400) * 0.1;
+                tempf = (temp_raw - 400) * 0.1f;
 
                 humidity = (bb[6] & 0x7f); // 1-99 %rH
 
@@ -612,7 +616,7 @@ static int acurite_txr_decode(r_device *decoder, bitbuffer_t *bitbuffer)
 
                 // note the 3n1 seems to have one more high bit than 5n1
                 int temp_raw = (bb[4] & 0x1F) << 7 | (bb[5] & 0x7F);
-                tempf        = (temp_raw - 1480) * 0.1; // regression yields (rawtemp-1480)*0.1
+                tempf        = (temp_raw - 1480) * 0.1f; // regression yields (rawtemp-1480)*0.1
 
                 wind_speed_mph = bb[6] & 0x7f; // seems to be plain MPH
 
@@ -848,7 +852,7 @@ static int acurite_606_decode(r_device *decoder, bitbuffer_t *bitbuffer)
     battery   = (b[1] & 0x80) >> 7;
     temp_raw  = (int16_t)((b[1] << 12) | (b[2] << 4));
     temp_raw  = temp_raw >> 4;
-    temp_c    = temp_raw * 0.1;
+    temp_c    = temp_raw * 0.1f;
 
     /* clang-format off */
     data = data_make(
@@ -857,6 +861,86 @@ static int acurite_606_decode(r_device *decoder, bitbuffer_t *bitbuffer)
             "battery",          "Battery",      DATA_STRING, battery ? "OK" : "LOW",
             "temperature_C",    "Temperature",  DATA_FORMAT, "%.1f C", DATA_DOUBLE, temp_c,
             "mic",              "Integrity",    DATA_STRING, "CHECKSUM",
+            NULL);
+    /* clang-format on */
+
+    decoder_output_data(decoder, data);
+    return 1;
+}
+
+static int acurite_590tx_decode(r_device *decoder, bitbuffer_t *bitbuffer)
+{
+    data_t *data;
+    uint8_t *b;
+    int row;
+    int sensor_id; // the sensor ID - basically a random number that gets reset whenever the battery is removed
+    int battery;   // the battery status: 1 is good, 0 is low
+    int channel;
+    int humidity;
+    int temp_raw; // temperature as read from the data packet
+    float temp_c; // temperature in C
+
+    row = bitbuffer_find_repeated_row(bitbuffer, 3, 25); // expected are min 3 rows
+    if (row < 0)
+        return DECODE_ABORT_EARLY;
+
+    if (decoder->verbose > 1)
+        bitbuffer_printf(bitbuffer, "%s: ", __func__);
+
+    if (bitbuffer->bits_per_row[row] > 25)
+        return DECODE_ABORT_LENGTH;
+
+    b = bitbuffer->bb[row];
+
+    if (b[4] != 0) // last byte should be zero
+        return DECODE_FAIL_SANITY;
+
+    // reject all blank messages
+    if (b[0] == 0 && b[1] == 0 && b[2] == 0 && b[3] == 0)
+        return DECODE_FAIL_SANITY;
+
+    // parity check: odd parity on bits [0 .. 10]
+    // i.e. 8 bytes and another 2 bits.
+    uint8_t parity = b[0]; // parity as byte
+    parity = (parity >> 4) ^ (parity & 0xF); // fold to nibble
+    parity = (parity >> 2) ^ (parity & 0x3); // fold to 2 bits
+    parity ^= b[1] >> 6; // add remaining bits
+    parity = (parity >> 1) ^ (parity & 0x1); // fold to 1 bit
+
+    if (!parity) {
+        if (decoder->verbose) {
+            fprintf(stderr, "%s: parity check failed\n", __func__);
+        }
+        return DECODE_FAIL_MIC;
+    }
+
+    // Processing the temperature:
+    // Upper 4 bits are stored in nibble 1, lower 8 bits are stored in nibble 2
+    // upper 4 bits of nibble 1 are reserved for other usages (e.g. battery status)
+    sensor_id = b[0] & 0xFE; //first 6 bits and it changes each time it resets or change the battery
+    battery   = (b[0] & 0x01); //1=ok, 0=low battery
+    //next 2 bits are checksum
+    //next two bits are identify ID (maybe channel ?)
+    channel = (b[1] >> 4) & 0x03;
+
+    temp_raw = (int16_t)(((b[1] & 0x0F) << 12) | (b[2] << 4));
+    temp_raw = temp_raw >> 4;
+    temp_c   = (temp_raw - 500) * 0.1f; // NOTE: there seems to be a 50 degree offset?
+
+    if (temp_raw >= 0 && temp_raw <= 100) // NOTE: no other way to differentiate humidity from temperature?
+        humidity = temp_raw;
+    else
+        humidity = -1;
+
+     /* clang-format off */
+     data = data_make(
+            "model",            "",             DATA_STRING, "Acurite-590TX",
+            "id",               "",             DATA_INT,    sensor_id,
+            "battery",          "Battery",      DATA_STRING, battery ? "OK" : "LOW",
+            "channel",          "Channel",      DATA_INT,    channel,
+            "humidity",         "Humidity",     DATA_COND,   humidity != -1,    DATA_INT,    humidity,
+            "temperature_C",    "Temperature",  DATA_COND,   humidity == -1,    DATA_FORMAT, "%.1f C", DATA_DOUBLE, temp_c,
+            "mic",              "Integrity",    DATA_STRING, "PARITY",
             NULL);
     /* clang-format on */
 
@@ -975,47 +1059,45 @@ static int acurite_00275rm_decode(r_device *decoder, bitbuffer_t *bitbuffer)
 }
 
 static char *acurite_rain_gauge_output_fields[] = {
-    "model",
-    "id",
-    "rain", // TODO: remove this
-    "rain_mm",
-    NULL,
+        "model",
+        "id",
+        "rain", // TODO: remove this
+        "rain_mm",
+        NULL,
 };
 
 r_device acurite_rain_896 = {
-    .name           = "Acurite 896 Rain Gauge",
-    .modulation     = OOK_PULSE_PPM,
-    .short_width    = 1000,
-    .long_width     = 2000,
-    .gap_limit      = 3500,
-    .reset_limit    = 5000,
-    .decode_fn      = &acurite_rain_896_decode,
-// Disabled by default due to false positives on oregon scientific v1 protocol see issue #353
-    .disabled       = 1,
-    .fields         = acurite_rain_gauge_output_fields,
+        .name        = "Acurite 896 Rain Gauge",
+        .modulation  = OOK_PULSE_PPM,
+        .short_width = 1000,
+        .long_width  = 2000,
+        .gap_limit   = 3500,
+        .reset_limit = 5000,
+        .decode_fn   = &acurite_rain_896_decode,
+        .disabled    = 1, // Disabled by default due to false positives on oregon scientific v1 protocol see issue #353
+        .fields      = acurite_rain_gauge_output_fields,
 };
 
 static char *acurite_th_output_fields[] = {
-    "model",
-    "id",
-    "battery",
-    "temperature_C",
-    "humidity",
-    "status",
-    "mic",
-    NULL,
+        "model",
+        "id",
+        "battery",
+        "temperature_C",
+        "humidity",
+        "status",
+        "mic",
+        NULL,
 };
 
 r_device acurite_th = {
-    .name           = "Acurite 609TXC Temperature and Humidity Sensor",
-    .modulation     = OOK_PULSE_PPM,
-    .short_width    = 1000,
-    .long_width     = 2000,
-    .gap_limit      = 3000,
-    .reset_limit    = 10000,
-    .decode_fn      = &acurite_th_decode,
-    .disabled       = 0,
-    .fields         = acurite_th_output_fields,
+        .name        = "Acurite 609TXC Temperature and Humidity Sensor",
+        .modulation  = OOK_PULSE_PPM,
+        .short_width = 1000,
+        .long_width  = 2000,
+        .gap_limit   = 3000,
+        .reset_limit = 10000,
+        .decode_fn   = &acurite_th_decode,
+        .fields      = acurite_th_output_fields,
 };
 
 /*
@@ -1023,41 +1105,40 @@ r_device acurite_th = {
  * Should match Acurite 592TX, 5-n-1, etc.
  */
 static char *acurite_txr_output_fields[] = {
-    "model",
-    "subtype",
-    "message_type", // TODO: remove this
-    "id",
-    "sensor_id", // TODO: remove this
-    "channel",
-    "sequence_num",
-    "battery_low", // TODO: remove this
-    "battery_ok",
-    "battery",
-    "temperature_C",
-    "temperature_F",
-    "humidity",
-    "wind_speed_mph", // TODO: remove this
-    "wind_speed_kph", // TODO: remove this
-    "wind_avg_mi_h",
-    "wind_avg_km_h",
-    "wind_dir_deg",
-    "rain_inch", // TODO: remove this
-    "rain_in",
-    "rain_mm",
-    NULL,
+        "model",
+        "subtype",
+        "message_type", // TODO: remove this
+        "id",
+        "sensor_id", // TODO: remove this
+        "channel",
+        "sequence_num",
+        "battery_low", // TODO: remove this
+        "battery_ok",
+        "battery",
+        "temperature_C",
+        "temperature_F",
+        "humidity",
+        "wind_speed_mph", // TODO: remove this
+        "wind_speed_kph", // TODO: remove this
+        "wind_avg_mi_h",
+        "wind_avg_km_h",
+        "wind_dir_deg",
+        "rain_inch", // TODO: remove this
+        "rain_in",
+        "rain_mm",
+        NULL,
 };
 
 r_device acurite_txr = {
-    .name           = "Acurite 592TXR Temp/Humidity, 5n1 Weather Station, 6045 Lightning",
-    .modulation     = OOK_PULSE_PWM,
-    .short_width    = 220,  // short pulse is 220 us + 392 us gap
-    .long_width     = 408,  // long pulse is 408 us + 204 us gap
-    .sync_width     = 620,  // sync pulse is 620 us + 596 us gap
-    .gap_limit      = 500,  // longest data gap is 392 us, sync gap is 596 us
-    .reset_limit    = 4000, // packet gap is 2192 us
-    .decode_fn      = &acurite_txr_decode,
-    .disabled       = 0,
-    .fields         = acurite_txr_output_fields,
+        .name        = "Acurite 592TXR Temp/Humidity, 5n1 Weather Station, 6045 Lightning",
+        .modulation  = OOK_PULSE_PWM,
+        .short_width = 220,  // short pulse is 220 us + 392 us gap
+        .long_width  = 408,  // long pulse is 408 us + 204 us gap
+        .sync_width  = 620,  // sync pulse is 620 us + 596 us gap
+        .gap_limit   = 500,  // longest data gap is 392 us, sync gap is 596 us
+        .reset_limit = 4000, // packet gap is 2192 us
+        .decode_fn   = &acurite_txr_decode,
+        .fields      = acurite_txr_output_fields,
 };
 
 /*
@@ -1071,25 +1152,24 @@ r_device acurite_txr = {
  * There should be 40 bits of data though. But the last bit can't be detected.
  */
 static char *acurite_986_output_fields[] = {
-    "model",
-    "id",
-    "channel",
-    "battery",
-    "temperature_F",
-    "status",
-    NULL,
+        "model",
+        "id",
+        "channel",
+        "battery",
+        "temperature_F",
+        "status",
+        NULL,
 };
 
 r_device acurite_986 = {
-    .name           = "Acurite 986 Refrigerator / Freezer Thermometer",
-    .modulation     = OOK_PULSE_PPM,
-    .short_width    = 520,
-    .long_width     = 880,
-    .gap_limit      = 1280,
-    .reset_limit    = 4000,
-    .decode_fn      = &acurite_986_decode,
-    .disabled       = 0,
-    .fields         = acurite_986_output_fields,
+        .name        = "Acurite 986 Refrigerator / Freezer Thermometer",
+        .modulation  = OOK_PULSE_PPM,
+        .short_width = 520,
+        .long_width  = 880,
+        .gap_limit   = 1280,
+        .reset_limit = 4000,
+        .decode_fn   = &acurite_986_decode,
+        .fields      = acurite_986_output_fields,
 };
 
 /*
@@ -1100,58 +1180,79 @@ r_device acurite_986 = {
  */
 
 static char *acurite_606_output_fields[] = {
-    "model",
-    "id",
-    "battery",
-    "temperature_C",
-    "mic",
-    NULL,
+        "model",
+        "id",
+        "battery",
+        "temperature_C",
+        "mic",
+        NULL,
 };
 
+static char *acurite_590_output_fields[] = {
+        "model",
+        "id",
+        "battery",
+        "channel",
+        "temperature_C",
+        "humidity",
+        "mic",
+        NULL,
+};
+
+// actually tests/acurite/02/gfile002.cu8, check this
+//.modulation     = OOK_PULSE_PWM,
+//.short_width    = 576,
+//.long_width     = 1076,
+//.gap_limit      = 1200,
+//.reset_limit    = 12000,
 r_device acurite_606 = {
-    .name           = "Acurite 606TX Temperature Sensor",
-    // actually tests/acurite/02/gfile002.cu8, check this
-    //.modulation     = OOK_PULSE_PWM,
-    //.short_width    = 576,
-    //.long_width     = 1076,
-    //.gap_limit      = 1200,
-    //.reset_limit    = 12000,
-    .modulation     = OOK_PULSE_PPM,
-    .short_width    = 2000,
-    .long_width     = 4000,
-    .gap_limit      = 7000,
-    .reset_limit    = 10000,
-    .decode_fn      = &acurite_606_decode,
-    .disabled       = 0,
-    .fields         = acurite_606_output_fields,
+        .name        = "Acurite 606TX Temperature Sensor",
+        .modulation  = OOK_PULSE_PPM,
+        .short_width = 2000,
+        .long_width  = 4000,
+        .gap_limit   = 7000,
+        .reset_limit = 10000,
+        .decode_fn   = &acurite_606_decode,
+        .fields      = acurite_606_output_fields,
 };
 
 static char *acurite_00275rm_output_fields[] = {
-    "model",
-    "subtype",
-    "probe", // TODO: remove this
-    "id",
-    "battery",
-    "temperature_C",
-    "humidity",
-    "water",
-    "temperature_1_C",
-    "humidity_1",
-    "ptemperature_C",
-    "phumidity",
-    "mic",
-    NULL,
+        "model",
+        "subtype",
+        "probe", // TODO: remove this
+        "id",
+        "battery",
+        "temperature_C",
+        "humidity",
+        "water",
+        "temperature_1_C",
+        "humidity_1",
+        "ptemperature_C",
+        "phumidity",
+        "mic",
+        NULL,
 };
 
 r_device acurite_00275rm = {
-    .name           = "Acurite 00275rm,00276rm Temp/Humidity with optional probe",
-    .modulation     = OOK_PULSE_PWM,
-    .short_width    = 232,  // short pulse is 232 us
-    .long_width     = 420,  // long pulse is 420 us
-    .gap_limit      = 520,  // long gap is 384 us, sync gap is 592 us
-    .reset_limit    = 708,  // no packet gap, sync gap is 592 us
-    .sync_width     = 632,  // sync pulse is 632 us
-    .decode_fn      = &acurite_00275rm_decode,
-    .disabled       = 0,
-    .fields         = acurite_00275rm_output_fields,
+        .name        = "Acurite 00275rm,00276rm Temp/Humidity with optional probe",
+        .modulation  = OOK_PULSE_PWM,
+        .short_width = 232, // short pulse is 232 us
+        .long_width  = 420, // long pulse is 420 us
+        .gap_limit   = 520, // long gap is 384 us, sync gap is 592 us
+        .reset_limit = 708, // no packet gap, sync gap is 592 us
+        .sync_width  = 632, // sync pulse is 632 us
+        .decode_fn   = &acurite_00275rm_decode,
+        .fields      = acurite_00275rm_output_fields,
+};
+
+r_device acurite_590tx = {
+        .name        = "Acurite 590TX Temperature with optional Humidity",
+        .modulation  = OOK_PULSE_PPM, //OOK_PULSE_PWM,
+        .short_width = 500,           // short pulse is 232 us
+        .long_width  = 1500,          // long pulse is 420 us
+        .gap_limit   = 1484,          // long gap is 384 us, sync gap is 592 us
+        .reset_limit = 3000,          // no packet gap, sync gap is 592 us
+        .sync_width  = 500,           // sync pulse is 632 us
+        .decode_fn   = &acurite_590tx_decode,
+        .fields      = acurite_590_output_fields,
 };

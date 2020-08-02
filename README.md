@@ -51,9 +51,7 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
        Specify a negative number to disable a device decoding protocol (can be used multiple times)
   [-G] Enable blacklisted device decoding protocols, for testing only.
   [-X <spec> | help] Add a general purpose decoder (prepend -R 0 to disable all decoders)
-  [-l <level>] Change detection level used to determine pulses (0-16384) (0=auto) (default: 0)
-  [-z <value>] Override short value in data decoder
-  [-x <value>] Override long value in data decoder
+  [-Y level=<dB level>] Manual detection level used to determine pulses (-1.0 to -30.0) (0=auto)
   [-n <value>] Specify number of samples to take (each sample is 2 bytes: 1 each of I & Q)
   [-Y auto | classic | minmax] FSK pulse detector mode.
 		= Analyze/Debug options =
@@ -166,7 +164,7 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
     [88]  Toyota TPMS
     [89]  Ford TPMS
     [90]  Renault TPMS
-    [91]  inFactory, FreeTec NC-3982-913 temperature humidity sensor
+    [91]  inFactory, nor-tec, FreeTec NC-3982-913 temperature humidity sensor
     [92]  FT-004-B Temperature Sensor
     [93]  Ford Car Key
     [94]  Philips outdoor temperature sensor (type AJ3650)
@@ -224,9 +222,21 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
     [146]  Auriol AFW2A1 temperature/humidity sensor
     [147]  TFA Drop Rain Gauge 30.3233.01
     [148]  DSC Security Contact (WS4945)
-    [149]  ERT SCM
-    [150]* Klimalogg/30.3180.IT (-f 868950000 -s 2400000)
-
+    [149]  ERT
+    [150]* Klimalogg
+    [151]  Visonic powercode
+    [152]  Eurochron EFTH-800 temperature and humidity sensor
+    [153]  Cotech 36-7959 wireless weather station with USB
+    [154]  Standard Consumption Message Plus (SCMplus)
+    [155]  Fine Offset Electronics WH1080/WH3080 Weather Station (FSK)
+    [156]  Abarth 124 Spider TPMS
+    [157]  Missil ML0757 weather station
+    [158]  Sharp SPC775 weather station
+    [159]  Insteon
+    [160]  Interval Data Message (IDM)
+    [161]  Interval Data Message (IDM) for Net Meters
+    [162]* ThermoPro-TX2 temperature sensor
+    [163]  Acurite 590TX Temperature with optional Humidity
 
 * Disabled by default, use -R n or -G
 

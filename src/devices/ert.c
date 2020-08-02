@@ -57,6 +57,16 @@ static int ert_decode(r_device *decoder, bitbuffer_t *bitbuffer)
         return DECODE_ABORT_LENGTH;
 
     b = bitbuffer->bb[0];
+
+    // No need to decode/extract values for simple test
+    // check id tamper type crc  value not all zero'ed
+    if ( !b[0] && !b[1] && !b[2] && !b[3] ) {
+        if (decoder->verbose > 1) {
+            fprintf(stderr, "%s: DECODE_FAIL_SANITY data all 0x00\n", __func__);
+        }
+        return DECODE_FAIL_SANITY;
+    }
+
     if (crc16(&b[2], 10, 0x6F63, 0))
         return DECODE_FAIL_MIC;
 
@@ -65,7 +75,7 @@ static int ert_decode(r_device *decoder, bitbuffer_t *bitbuffer)
 
     /* Extract parameters */
     physical_tamper = (b[3]&0xC0) >> 6;
-    ert_type = (b[3]&0x60) >> 2;
+    ert_type = (b[3]>>2) & 0x0F;
     encoder_tamper = b[3]&0x03;
     consumption_data = (b[4]<<16) | (b[5]<<8) | b[6];
     ert_id = ((b[2]&0x06)<<23) | (b[7]<<16) | (b[8]<<8) | b[9];
