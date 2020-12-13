@@ -1,5 +1,11 @@
 /** @file
     LaCrosse WS-2310 / WS-3600 433 Mhz Weather Station.
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
 */
 /** @fn int lacrossews_callback(r_device *decoder, bitbuffer_t *bitbuffer)
 LaCrosse WS-2310 / WS-3600 433 Mhz Weather Station.
@@ -88,7 +94,8 @@ static int lacrossews_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     int row;
     int events = 0;
     uint8_t msg_nybbles[(LACROSSE_WS_BITLEN / 4)];
-    uint8_t ws_id, msg_type, sensor_id, msg_data, msg_unknown, msg_checksum;
+    uint8_t ws_id, msg_type, sensor_id;
+    // uint8_t msg_data, msg_unknown, msg_checksum;
     int msg_value_bcd, msg_value_bcd2, msg_value_bin;
     float temp_c, wind_dir, wind_spd, rain_mm;
     char *wind_key, *wind_label;
@@ -102,20 +109,20 @@ static int lacrossews_callback(r_device *decoder, bitbuffer_t *bitbuffer)
         ws_id          = (msg_nybbles[0] << 4) + msg_nybbles[1];
         msg_type       = ((msg_nybbles[2] >> 1) & 0x4) + (msg_nybbles[2] & 0x3);
         sensor_id      = (msg_nybbles[3] << 4) + msg_nybbles[4];
-        msg_data       = (msg_nybbles[5] << 1) + (msg_nybbles[6] >> 3);
-        msg_unknown    = msg_nybbles[6] & 0x01;
+        //msg_data       = (msg_nybbles[5] << 1) + (msg_nybbles[6] >> 3);
+        //msg_unknown    = msg_nybbles[6] & 0x01;
         msg_value_bcd  = msg_nybbles[7] * 100 + msg_nybbles[8] * 10 + msg_nybbles[9];
         msg_value_bcd2 = msg_nybbles[7] * 10 + msg_nybbles[8];
         msg_value_bin  = (msg_nybbles[7] * 256 + msg_nybbles[8] * 16 + msg_nybbles[9]);
-        msg_checksum   = msg_nybbles[12];
+        //msg_checksum   = msg_nybbles[12];
 
         switch (msg_type) {
 
         case 0: // Temperature
             if (ws_id == 0x6)
-                temp_c = (msg_value_bcd - 400.0) * 0.1;
+                temp_c = (msg_value_bcd - 400.0) * 0.1f;
             else
-                temp_c = (msg_value_bcd - 300.0) * 0.1;
+                temp_c = (msg_value_bcd - 300.0) * 0.1f;
 
             /* clang-format off */
             data = data_make(
@@ -168,7 +175,7 @@ static int lacrossews_callback(r_device *decoder, bitbuffer_t *bitbuffer)
 
         case 7: // Gust
             wind_dir = msg_nybbles[9] * 22.5;
-            wind_spd = (msg_nybbles[7] * 16 + msg_nybbles[8]) / 10.0;
+            wind_spd = (msg_nybbles[7] * 16 + msg_nybbles[8]) * 0.1f;
             if (msg_nybbles[7] == 0xF && msg_nybbles[8] == 0xE) {
                 if (decoder->verbose) {
                     fprintf(stderr, "LaCrosse WS %02X-%02X: %s Not Connected\n",

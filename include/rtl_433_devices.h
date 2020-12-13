@@ -157,9 +157,33 @@
     DECL(auriol_afw2a1) \
     DECL(tfa_drop_303233) \
     DECL(dsc_security_ws4945) \
-    DECL(ert_amr) \
-    DECL(klimalogg)
-
+    DECL(ert_scm) \
+    DECL(klimalogg) \
+    DECL(visonic_powercode) \
+    DECL(eurochron_efth800) \
+    DECL(cotech_36_7959) \
+    DECL(scmplus) \
+    DECL(fineoffset_wh1080_fsk) \
+    DECL(tpms_abarth124) \
+    DECL(missil_ml0757) \
+    DECL(sharp_spc775) \
+    DECL(insteon) \
+    DECL(ert_idm) \
+    DECL(ert_netidm) \
+    DECL(thermopro_tx2) \
+    DECL(acurite_590tx) \
+    DECL(secplus_v2) \
+    DECL(tfa_30_3221) \
+    DECL(lacrosse_breezepro) \
+    DECL(somfy_rts) \
+    DECL(schrader_SMD3MA4) \
+    DECL(nice_flor_s) \
+    DECL(lacrosse_wr1) \
+    DECL(lacrosse_th3) \
+    DECL(bresser_6in1) \
+    DECL(bresser_7in1) \
+    DECL(ecodhome) \
+    DECL(lacrosse_r1) \
     /* Add new decoders here. */
 
 #define DECL(name) extern r_device name;
