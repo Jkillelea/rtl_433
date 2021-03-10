@@ -184,7 +184,7 @@ static int parse_insteon_pkt(r_device *decoder, bitbuffer_t *bits, unsigned int 
 
     if (decoder->verbose) {
         uint8_t buffy[4];
-        fprintf(stderr, "%s\tstart_pos %u row_length %hu =  %d\n",
+        fprintf(stderr, "%s\tstart_pos %u row_length %hu =  %u\n",
                 __func__, start_pos, bits->bits_per_row[row], (bits->bits_per_row[row] - start_pos));
         fprintf(stderr, "%s\t%s\t%-5s\t%s\t%s\t%s\n",
                 __func__, "pkt_i", "pkt_d", "next", "length", "count");
@@ -196,7 +196,7 @@ static int parse_insteon_pkt(r_device *decoder, bitbuffer_t *bits, unsigned int 
 
     /*   Is this overkill ??
     unsigned int l;
-    if(extended) {
+    if (extended) {
          l = 642;
      } else {
          l = 278;
@@ -227,7 +227,7 @@ static int parse_insteon_pkt(r_device *decoder, bitbuffer_t *bits, unsigned int 
         y = (next_pos - start_pos);
         if (y != 26) {
             if (decoder->verbose)
-                fprintf(stderr, "%s: stop %d != 26\n", __func__, y);
+                fprintf(stderr, "%s: stop %u != 26\n", __func__, y);
             break;
         }
 
@@ -257,7 +257,7 @@ static int parse_insteon_pkt(r_device *decoder, bitbuffer_t *bits, unsigned int 
     }
 
     // if (decoder->verbose > 1) {
-    //     for(int j=0; j < results_len; j++) {
+    //     for (int j=0; j < results_len; j++) {
     //          fprintf(stderr, "%d:%02X ", j,  results[j]);
     //     }
     //     puts("\n");
@@ -302,7 +302,7 @@ static int parse_insteon_pkt(r_device *decoder, bitbuffer_t *bits, unsigned int 
         cmd_array[cmd_array_len++] = (int)results[j];
     }
 
-    char payload[35] = {0};
+    char payload[INSTEON_PACKET_MIN_EXT * 2 + 1] = {0};
     p                = payload;
     for (int j = 0; j < min_pkt_len; j++) {
         p += sprintf(p, "%02X", results[j]);
@@ -397,7 +397,6 @@ static int insteon_callback(r_device *decoder, bitbuffer_t *bitbuffer)
 {
     // unsigned int pkt_start_pos;
     uint16_t row;
-    unsigned int bit_index;
     unsigned int ret_value = 0;
     int fail_value         = 0;
     // unsigned int pkt_cnt   = 0;
@@ -416,7 +415,7 @@ static int insteon_callback(r_device *decoder, bitbuffer_t *bitbuffer)
      * loop over all rows and look for preamble
     */
     for (row = 0; row < bitbuffer->num_rows; ++row) {
-        bit_index = 0;
+        unsigned bit_index = 0;
         // Validate message and reject it as fast as possible : check for preamble
 
         if (bitbuffer->bits_per_row[row] < INSTEON_BITLEN_MIN) {
@@ -499,6 +498,9 @@ static char *output_fields[] = {
         "mic", // remove if not applicable
         "payload",      // packet as a hex string
         "cmd_dat",      // array of int containing command + data
+        "msg_str",
+        "hopsmax",
+        "hopsleft",
         // "raw",
         // "raw_message",
         NULL,
@@ -511,11 +513,9 @@ r_device insteon = {
         .modulation  = FSK_PULSE_PCM,
         .short_width = 110, // short gap is 132 us
         .long_width  = 110, // long gap is 224 us
-        .gap_limit   = 300, // some distance above long
+        .gap_limit   = 500, // some distance above long
         .tolerance   = 15,
         .reset_limit = 1000, // a bit longer than packet gap
         .decode_fn   = &insteon_callback,
-        .disabled    = 0, // disabled and hidden, use 0 if there is a MIC, 1 otherwise
         .fields      = output_fields,
-        .verbose     = 0,
 };

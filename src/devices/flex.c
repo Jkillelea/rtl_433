@@ -71,6 +71,7 @@ struct flex_get {
     unsigned long mask;
     const char *name;
     struct flex_map map[GETTER_MAP_SLOTS];
+    const char *format;
 };
 
 #define GETTER_SLOTS 8
@@ -126,9 +127,15 @@ static void render_getters(data_t *data, uint8_t *bits, struct flex_params *para
             }
         }
         if (!getter->map[m].val) {
-            data_append(data,
+            if (getter->format) {
+                data_append(data,
+                    getter->name, "", DATA_FORMAT, getter->format, DATA_INT, val,
+                    NULL);
+            } else {
+                data_append(data,
                     getter->name, "", DATA_INT, val,
                     NULL);
+            }
         }
     }
 }
@@ -474,6 +481,11 @@ static void parse_getter(const char *arg, struct flex_get *getter)
             getter->bit_count = parse_bits(arg, bitrow);
             getter->mask = extract_number(bitrow, 0, getter->bit_count);
         }
+        else if (*arg == '%') {
+            getter->format = strdup(arg);
+            if (!getter->format)
+                FATAL_STRDUP("parse_getter()");
+        }
         else {
             getter->name = strdup(arg);
             if (!getter->name)
@@ -510,7 +522,6 @@ r_device *flex_create_device(char *spec)
         return NULL; // NOTE: returns NULL on alloc failure.
     }
     dev->decode_ctx = params;
-    char *c, *o;
     int get_count = 0;
 
     spec = strdup(spec);

@@ -62,7 +62,8 @@ There is an extra, unidentified 7th byte in WH2A packages.
 Based on reverse engineering with gnu-radio and the nice article here:
 http://lucsmall.com/2012/04/29/weather-station-hacking-part-2/
 */
-static int fineoffset_WH2_callback(r_device *decoder, bitbuffer_t *bitbuffer) {
+static int fineoffset_WH2_callback(r_device *decoder, bitbuffer_t *bitbuffer)
+{
     bitrow_t *bb = bitbuffer->bb;
     uint8_t b[6] = {0};
     data_t *data;
@@ -485,7 +486,7 @@ static int fineoffset_WH25_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     // Decode data
     uint8_t id        = ((b[0]&0x0f) << 4) | (b[1] >> 4);
     int low_battery   = (b[1] & 0x08) >> 3;
-    int invalid_flag  = (b[1] & 0x04) >> 2;
+    //int invalid_flag  = (b[1] & 0x04) >> 2;
     int temp_raw      = (b[1] & 0x03) << 8 | b[2]; // 0x7ff if invalid
     float temperature = (temp_raw - 400) * 0.1f;    // range -40.0-60.0 C
     uint8_t humidity  = b[3];
@@ -956,7 +957,8 @@ static char *output_fields_WH25[] = {
 static char *output_fields_WH51[] = {
     "model",
     "id",
-    "battery",
+    "battery_ok",
+    "battery_mV",
     "moisture",
     "boost",
     "ad_raw",
