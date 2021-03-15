@@ -36,6 +36,7 @@ add_library(r_433 STATIC
     util.c
     devices/custom_thermistor.c
     write_sigrok.c
+    devices/abmt.c
     devices/acurite.c
     devices/akhan_100F14.c
     devices/alecto.c
@@ -163,6 +164,7 @@ add_library(r_433 STATIC
     devices/tfa_30_3196.c
     devices/tfa_30_3221.c
     devices/tfa_drop_30.3233.c
+    devices/tfa_marbella.c
     devices/tfa_pool_thermometer.c
     devices/tfa_twin_plus_30.3049.c
     devices/thermopro_tp11.c
