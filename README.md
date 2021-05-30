@@ -19,8 +19,6 @@ Systems with 32-bit i686 and 64-bit x86-64 as well as (embedded) ARM, like the R
 
 See [BUILDING.md](docs/BUILDING.md)
 
-Official [binary builds for Windows](https://bintray.com/chzu/dist/rtl_433) (32 and 64 bit) are available at Bintray.
-
 On Debian (sid) or Ubuntu (19.10+), `apt-get install rtl-433` for other distros check https://repology.org/project/rtl-433/versions
 
 On MacOS, `brew install rtl_433`.
@@ -104,7 +102,7 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
     [19]  Nexus, FreeTec NC-7345, NX-3980, Solight TE82S, TFA 30.3209 temperature/humidity sensor
     [20]  Ambient Weather, TFA 30.3208.02 temperature sensor
     [21]  Calibeur RF-104 Sensor
-    [22]* X10 RF
+    [22]  X10 RF
     [23]  DSC Security Contact
     [24]* Brennenstuhl RCS 2044
     [25]  Globaltronics GT-WT-02 Sensor
@@ -259,6 +257,12 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
     [178]  Security+ (Keyfob)
     [179]  Cavius smoke, heat and water detector
     [180]  Jansite TPMS Model Solar
+    [181]  Amazon Basics Meat Thermometer
+    [182]  TFA Marbella Pool Thermometer
+    [183]  Auriol AHFL temperature/humidity sensor
+    [184]  Auriol AFT 77 B2 temperature sensor
+    [185]  Honeywell CM921 Wireless Programmable Room Thermostat
+    [186]  Hyundai TPMS (VDO)
 
 * Disabled by default, use -R n or -G
 
