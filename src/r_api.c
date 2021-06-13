@@ -227,8 +227,6 @@ void register_protocol(r_cfg_t *cfg, r_device *r_dev, char *arg)
     p->verbose      = cfg->verbosity > 0 ? cfg->verbosity - 1 : 0;
     p->verbose_bits = cfg->verbose_bits;
 
-    p->old_model_keys = cfg->old_model_keys; // TODO: temporary allow to change to new style model keys
-
     p->output_fn  = data_acquired_handler;
     p->output_ctx = cfg;
 
@@ -374,12 +372,6 @@ char const **well_known_output_fields(r_cfg_t *cfg)
 /** Convert CSV keys according to selected conversion mode. Replacement is static but in-place. */
 static char const **convert_csv_fields(r_cfg_t *cfg, char const **fields)
 {
-    if (!cfg->old_model_keys) {
-        for (char const **p = fields; *p; ++p) {
-            if (!strcmp(*p, "battery")) *p = "battery_ok";
-        }
-    }
-
     if (cfg->conversion_mode == CONVERT_SI) {
         for (char const **p = fields; *p; ++p) {
             if (!strcmp(*p, "temperature_F")) *p = "temperature_C";
@@ -409,7 +401,7 @@ static char const **convert_csv_fields(r_cfg_t *cfg, char const **fields)
 }
 
 // find the fields output for CSV
-char const **determine_csv_fields(r_cfg_t *cfg, char const **well_known, int *num_fields)
+char const **determine_csv_fields(r_cfg_t *cfg, char const *const *well_known, int *num_fields)
 {
     list_t field_list = {0};
     list_ensure_size(&field_list, 100);
@@ -555,23 +547,6 @@ void data_acquired_handler(r_device *r_dev, data_t *data)
         }
     }
 #endif
-
-    // replace textual battery key with numerical battery key
-    if (!cfg->old_model_keys) {
-        for (data_t *d = data; d; d = d->next) {
-            if ((d->type == DATA_STRING) && !strcmp(d->key, "battery")) {
-                free(d->key);
-                d->key = strdup("battery_ok");
-                if (!d->key)
-                    FATAL_STRDUP("data_acquired_handler()");
-                int ok = d->value.v_ptr && !strcmp(d->value.v_ptr, "OK");
-                free(d->value.v_ptr);
-                d->type = DATA_INT;
-                d->value.v_int = ok;
-                break;
-            }
-        }
-    }
 
     if (cfg->conversion_mode == CONVERT_SI) {
         for (data_t *d = data; d; d = d->next) {
@@ -898,10 +873,10 @@ void add_csv_output(r_cfg_t *cfg, char *param)
     list_push(&cfg->output_handler, data_output_csv_create(fopen_output(param)));
 }
 
-void start_outputs(r_cfg_t *cfg, char const **well_known)
+void start_outputs(r_cfg_t *cfg, char const *const *well_known)
 {
     int num_output_fields;
-    const char **output_fields = determine_csv_fields(cfg, well_known, &num_output_fields);
+    char const **output_fields = determine_csv_fields(cfg, well_known, &num_output_fields);
 
     for (size_t i = 0; i < cfg->output_handler.len; ++i) { // list might contain NULLs
         data_output_start(cfg->output_handler.elems[i], output_fields, num_output_fields);
