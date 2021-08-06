@@ -663,10 +663,6 @@ static int acurite_txr_decode(r_device *decoder, bitbuffer_t *bitbuffer)
 
     bitbuffer_invert(bitbuffer);
 
-    if (decoder->verbose > 1) {
-        bitbuffer_printf(bitbuffer, "%s: ", __func__);
-    }
-
     for (uint16_t brow = 0; brow < bitbuffer->num_rows; ++brow) {
         browlen = (bitbuffer->bits_per_row[brow] + 7)/8;
         bb = bitbuffer->bb[brow];
@@ -823,7 +819,7 @@ static int acurite_txr_decode(r_device *decoder, bitbuffer_t *bitbuffer)
             //  1101 xxxx  = channel A 2nd copy
             //  1110 xxxx  = channel A 3rd copy
             sequence_num = (bb[0] & 0x30) >> 4;
-            battery_low = (bb[2] & 0x40) >> 6;
+            battery_low = (bb[2] & 0x40) == 0;
 
             // Only for 5N1, range: 0 to 159 kph
             // raw number is cup rotations per 4 seconds
@@ -904,7 +900,7 @@ static int acurite_txr_decode(r_device *decoder, bitbuffer_t *bitbuffer)
                         "id",    NULL,   DATA_FORMAT,    "0x%02X",   DATA_INT,       sensor_id,
                         "channel",      NULL,   DATA_STRING,    &channel_str,
                         "sequence_num",  NULL,   DATA_INT,      sequence_num,
-                        "battery_ok",       "Battery",      DATA_INT,    !!battery_low, // NOTE: is this really flipped?
+                        "battery_ok",       "Battery",      DATA_INT,    !battery_low,
                         "wind_avg_mi_h",   "wind_speed",   DATA_FORMAT,    "%.1f mi/h", DATA_DOUBLE,     wind_speed_mph,
                         "temperature_F",     "temperature",    DATA_FORMAT,    "%.1f F", DATA_DOUBLE,    tempf,
                         "humidity",     NULL,    DATA_FORMAT,    "%u %%",   DATA_INT,   humidity,
@@ -1122,9 +1118,6 @@ static int acurite_606_decode(r_device *decoder, bitbuffer_t *bitbuffer)
     if (b[0] == 0 && b[1] == 0 && b[2] == 0 && b[3] == 0)
         return DECODE_FAIL_SANITY;
 
-    if (decoder->verbose > 1)
-        bitbuffer_printf(bitbuffer, "%s: ", __func__);
-
     // calculate the checksum and only continue if we have a matching checksum
     uint8_t chk = lfsr_digest8(b, 3, 0x98, 0xf1);
     if (chk != b[3])
@@ -1168,9 +1161,6 @@ static int acurite_590tx_decode(r_device *decoder, bitbuffer_t *bitbuffer)
     row = bitbuffer_find_repeated_row(bitbuffer, 3, 25); // expected are min 3 rows
     if (row < 0)
         return DECODE_ABORT_EARLY;
-
-    if (decoder->verbose > 1)
-        bitbuffer_printf(bitbuffer, "%s: ", __func__);
 
     if (bitbuffer->bits_per_row[row] > 25)
         return DECODE_ABORT_LENGTH;
@@ -1236,10 +1226,6 @@ static int acurite_590tx_decode(r_device *decoder, bitbuffer_t *bitbuffer)
 static int acurite_00275rm_decode(r_device *decoder, bitbuffer_t *bitbuffer)
 {
     bitbuffer_invert(bitbuffer);
-
-    if (decoder->verbose > 1) {
-        bitbuffer_printf(bitbuffer, "%s: ", __func__);
-    }
 
     // This sensor repeats a signal three times. Combine as fallback.
     uint8_t *b_rows[3] = {0};
