@@ -68,6 +68,7 @@ set(CMAKE_C_STANDARD 99)
 if(("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_C_COMPILER_ID}" MATCHES "Clang") AND NOT WIN32)
     ADD_DEFINITIONS(-Wall)
     ADD_DEFINITIONS(-Wextra)
+    ADD_DEFINITIONS(-Wvla)
     ADD_DEFINITIONS(-Wsign-compare)
     ADD_DEFINITIONS(-std=c99)
     ADD_DEFINITIONS(-pedantic)
@@ -284,11 +285,6 @@ analyzer (requires Clang)" OFF)
 # Build tests
 ########################################################################
 include(CTest) # note: this adds a BUILD_TESTING which defaults to ON
-
-########################################################################
-# Configure CI deploy
-########################################################################
-configure_file(${PROJECT_SOURCE_DIR}/.bintray.json ${CMAKE_CURRENT_BINARY_DIR}/bintray.json)
 
 ########################################################################
 # Add subdirectories

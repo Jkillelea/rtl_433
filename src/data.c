@@ -65,6 +65,11 @@
         fprintf(stderr, "Winsock error %d.\n", WSAGetLastError());
     }
 #endif
+#ifdef ESP32
+    #include <tcpip_adapter.h>
+    #define _POSIX_HOST_NAME_MAX 128
+    #define gai_strerror strerror
+#endif
 
 typedef void* (*array_elementwise_import_fn)(void*);
 typedef void (*array_element_release_fn)(void*);
@@ -397,7 +402,7 @@ void data_output_print(data_output_t *output, data_t *data)
     }
 }
 
-void data_output_start(struct data_output *output, const char **fields, int num_fields)
+void data_output_start(struct data_output *output, char const *const *fields, int num_fields)
 {
     if (!output || !output->output_start)
         return;
@@ -805,7 +810,7 @@ static int compare_strings(const void *a, const void *b)
     return strcmp(*(char **)a, *(char **)b);
 }
 
-static void data_output_csv_start(struct data_output *output, const char **fields, int num_fields)
+static void data_output_csv_start(struct data_output *output, char const *const *fields, int num_fields)
 {
     data_output_csv_t *csv = (data_output_csv_t *)output;
 
@@ -824,9 +829,9 @@ static void data_output_csv_start(struct data_output *output, const char **field
         WARN_CALLOC("data_output_csv_start()");
         goto alloc_error;
     }
-    memcpy(allowed, fields, sizeof(const char *) * num_fields);
+    memcpy((void *)allowed, fields, sizeof(const char *) * num_fields);
 
-    qsort(allowed, num_fields, sizeof(char *), compare_strings);
+    qsort((void *)allowed, num_fields, sizeof(char *), compare_strings);
 
     // overwrite duplicates
     i = 0;
@@ -867,7 +872,7 @@ static void data_output_csv_start(struct data_output *output, const char **field
         }
     }
     csv->fields[csv_fields] = NULL;
-    free(allowed);
+    free((void *)allowed);
     free(use_count);
 
     // Output the CSV header
@@ -879,9 +884,9 @@ static void data_output_csv_start(struct data_output *output, const char **field
 
 alloc_error:
     free(use_count);
-    free(allowed);
+    free((void *)allowed);
     if (csv)
-        free(csv->fields);
+        free((void *)csv->fields);
     free(csv);
 }
 
@@ -901,7 +906,7 @@ static void data_output_csv_free(data_output_t *output)
 {
     data_output_csv_t *csv = (data_output_csv_t *)output;
 
-    free(csv->fields);
+    free((void *)csv->fields);
     free(csv);
 }
 
@@ -1194,7 +1199,18 @@ struct data_output *data_output_syslog_create(const char *host, const char *port
     syslog->output.output_free  = data_output_syslog_free;
     // Severity 5 "Notice", Facility 20 "local use 4"
     syslog->pri = 20 * 8 + 5;
+    #ifdef ESP32
+    const char* adapter_hostname = NULL;
+    tcpip_adapter_get_hostname(TCPIP_ADAPTER_IF_STA, &adapter_hostname);
+    if (adapter_hostname) {
+        memcpy(syslog->hostname, adapter_hostname, _POSIX_HOST_NAME_MAX);
+    }
+    else {
+        syslog->hostname[0] = '\0';
+    }
+    #else
     gethostname(syslog->hostname, _POSIX_HOST_NAME_MAX + 1);
+    #endif
     syslog->hostname[_POSIX_HOST_NAME_MAX] = '\0';
     datagram_client_open(&syslog->client, host, port);
 
