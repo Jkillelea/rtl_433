@@ -44,7 +44,7 @@ static int account_event(r_device *device, bitbuffer_t *bits, char const *demod_
     }
 
     // Debug printout
-    if (!device->decode_fn || (device->verbose && ret > 0)) {
+    if (!device->decode_fn || (device->verbose && ret > 0) || device->verbose > 1) {
         fprintf(stderr, "%s(): %s\n", demod_name, device->name);
         bitbuffer_print(bits);
     }
@@ -357,7 +357,7 @@ int pulse_demod_pwm(const pulse_data_t *pulses, r_device *device)
         }
         else {
             // Pulse outside specified timing
-            return 0;
+            bitbuffer_add_row(&bits);
         }
 
         // End of Message?
