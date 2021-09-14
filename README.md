@@ -21,6 +21,8 @@ See [BUILDING.md](docs/BUILDING.md)
 
 On Debian (sid) or Ubuntu (19.10+), `apt-get install rtl-433` for other distros check https://repology.org/project/rtl-433/versions
 
+On FreeBSD, `pkg install rtl-433`.
+
 On MacOS, `brew install rtl_433`.
 
 Docker images with rtl_433 are available [on the github page of hertzg](https://github.com/hertzg/rtl_433_docker).
@@ -263,6 +265,7 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
     [184]  Auriol AFT 77 B2 temperature sensor
     [185]  Honeywell CM921 Wireless Programmable Room Thermostat
     [186]  Hyundai TPMS (VDO)
+    [187]  RojaFlex shutter and remote devices
 
 * Disabled by default, use -R n or -G
 
@@ -366,7 +369,7 @@ E.g. -X "n=doorbell,m=OOK_PWM,s=400,l=800,r=7000,g=1000,match={24}0xa9878c,repea
 
 
 		= Meta information option =
-  [-M time[:<options>]|protocol|level|stats|bits|oldmodel] Add various metadata to every output line.
+  [-M time[:<options>]|protocol|level|stats|bits] Add various metadata to every output line.
 	Use "time" to add current date and time meta data (preset for live inputs).
 	Use "time:rel" to add sample position meta data (preset for read-file and stdin).
 	Use "time:unix" to show the seconds since unix epoch as time meta data.
@@ -382,7 +385,6 @@ E.g. -X "n=doorbell,m=OOK_PWM,s=400,l=800,r=7000,g=1000,match={24}0xa9878c,repea
 	Use "stats[:[<level>][:<interval>]]" to report statistics (default: 600 seconds).
 	  level 0: no report, 1: report successful devices, 2: report active devices, 3: report all
 	Use "bits" to add bit representation to code outputs (for debug).
-	Note: You can use "oldmodel" to get the old model keys. This will be removed shortly.
 
 
 		= Read file option =
