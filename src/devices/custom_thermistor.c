@@ -53,7 +53,7 @@ static int thermistor_decode_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     double temperature = 1/(1/T25 + log(Rth/R25)/B25) - 273.15;
 
     data = data_make(
-            "model", "", DATA_STRING, _X("Custom Thermistor", "Custom Thermistor"),
+            "model",          "",              DATA_STRING,         "Custom Thermistor",
             // "header",        "header (32bit)", DATA_FORMAT, "0x%x", DATA_INT,    header,
             "len",           "Len (8bit)",     DATA_FORMAT, "0x%x", DATA_INT,    len,
             "temperature_C", "temperature_C",  DATA_FORMAT, "%f",   DATA_DOUBLE, temperature,
