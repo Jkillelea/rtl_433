@@ -274,7 +274,14 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
     [188]  Marlec Solar iBoost+ sensors
     [189]  Somfy io-homecontrol
     [190]  Ambient Weather (Fine Offset) WH31L Lightning-Strike sensor
-    [191]  Markisol
+    [191]  Markisol, E-Motion, BOFU, Rollerhouse, BF-30x, BF-415 curtain remote
+    [192]  Govee Water Leak Dectector H5054, Door Contact Sensor B5023
+    [193]  Clipsal CMR113 Cent-a-meter power meter
+    [194]  Inkbird ITH-20R temperature humidity sensor
+    [195]  RainPoint soil temperature and moisture sensor
+    [196]  Atech-WS308 temperature sensor
+    [197]  Acurite Grill/Meat Thermometer 01185M
+    [198]* EnOcean ERP1
 
 * Disabled by default, use -R n or -G
 
@@ -470,8 +477,13 @@ If you see this error:
 
 then
 
-    sudo rmmod dvb_usb_rtl28xxu rtl2832
+    sudo rmmod rtl2832_sdr dvb_usb_rtl28xxu rtl2832
 
+or add
+
+    blacklist dvb_usb_rtl28xxu
+
+to /etc/modprobe.d/blacklist.conf
 
 ## Releases
 

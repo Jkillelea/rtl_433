@@ -39,12 +39,14 @@ add_library(r_433 STATIC
     write_sigrok.c
     devices/abmt.c
     devices/acurite.c
+    devices/acurite_01185m.c
     devices/akhan_100F14.c
     devices/alecto.c
     devices/ambient_weather.c
     devices/ambientweather_tx8300.c
     devices/ambientweather_wh31e.c
     devices/archos_tbh.c
+    devices/atech_ws308.c
     devices/auriol_aft77b2.c
     devices/auriol_afw2a1.c
     devices/auriol_ahfl.c
@@ -62,6 +64,7 @@ add_library(r_433 STATIC
     devices/cardin.c
     devices/cavius.c
     devices/chuango.c
+    devices/cmr113.c
     devices/companion_wtr001.c
     devices/cotech_36_7959.c
     devices/current_cost.c
@@ -78,6 +81,7 @@ add_library(r_433 STATIC
     devices/elro_db286a.c
     devices/elv.c
     devices/emontx.c
+    devices/enocean_erp1.c
     devices/ert_idm.c
     devices/ert_scm.c
     devices/esa.c
@@ -96,6 +100,7 @@ add_library(r_433 STATIC
     devices/generic_motion.c
     devices/generic_remote.c
     devices/generic_temperature_sensor.c
+    devices/govee.c
     devices/gt_tmbbq05.c
     devices/gt_wt_02.c
     devices/gt_wt_03.c
@@ -110,6 +115,7 @@ add_library(r_433 STATIC
     devices/ibis_beacon.c
     devices/ikea_sparsnas.c
     devices/infactory.c
+    devices/inkbird_ith20r.c
     devices/inovalley-kw9015b.c
     devices/insteon.c
     devices/interlogix.c
@@ -152,6 +158,7 @@ add_library(r_433 STATIC
     devices/proove.c
     devices/quhwa.c
     devices/radiohead_ask.c
+    devices/rainpoint.c
     devices/rftech.c
     devices/rojaflex.c
     devices/rubicson.c

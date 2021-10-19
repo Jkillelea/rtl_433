@@ -16,33 +16,69 @@
 
 void bitbuffer_clear(bitbuffer_t *bits)
 {
-    bits->num_rows = 0;
-    memset(bits->bits_per_row, 0, BITBUF_ROWS * 2);
-    memset(bits->syncs_before_row, 0, BITBUF_ROWS * sizeof(bits->syncs_before_row[0]));
-    memset(bits->bb, 0, BITBUF_ROWS * BITBUF_COLS);
+    memset(bits, 0, sizeof(*bits));
 }
 
 void bitbuffer_add_bit(bitbuffer_t *bits, int bit)
 {
     if (bits->num_rows == 0)
-        bits->num_rows++; // Add first row automatically
+        bits->free_row = bits->num_rows = 1; // Add first row automatically
+
+    if (bits->bits_per_row[bits->num_rows - 1] == UINT16_MAX) {
+        // fprintf(stderr, "%s: Could not add more bits\n", __func__);
+        return;
+    }
+    if (bits->bits_per_row[bits->num_rows - 1] == UINT16_MAX - 1) {
+        fprintf(stderr, "%s: Warning: row length limit (%d bits) reached\n", __func__, UINT16_MAX);
+    }
+
     uint16_t col_index = bits->bits_per_row[bits->num_rows - 1] / 8;
     uint16_t bit_index = bits->bits_per_row[bits->num_rows - 1] % 8;
-    if ((col_index < BITBUF_COLS) && (bits->num_rows <= BITBUF_ROWS)) {
-        bits->bb[bits->num_rows - 1][col_index] |= (bit << (7 - bit_index));
-        bits->bits_per_row[bits->num_rows - 1]++;
+    if (bits->bits_per_row[bits->num_rows - 1] > 0
+            && bits->bits_per_row[bits->num_rows - 1] % (BITBUF_COLS * 8) == 0) {
+        // spill into next row
+        // fprintf(stderr, "%s: row spill [%d] to %d (%d)\n", __func__, bits->num_rows - 1, col_index, bits->free_row);
+        if (bits->free_row == BITBUF_ROWS - 1) {
+            fprintf(stderr, "%s: Warning: row count limit (%d rows) reached\n", __func__, BITBUF_ROWS);
+        }
+        if (bits->free_row < BITBUF_ROWS) {
+            bits->free_row++;
+        }
+        else {
+            // fprintf(stderr, "%s: Could not add more rows\n", __func__);
+            return;
+        }
     }
-    else {
-        // fprintf(stderr, "ERROR: bitbuffer:: Could not add more columns\n");    // Some decoders may add many columns...
+    uint8_t *b = bits->bb[bits->num_rows - 1];
+    b[col_index] |= (bit << (7 - bit_index));
+    bits->bits_per_row[bits->num_rows - 1]++;
+
+/*
+    // preamble compression
+    if (bits->bits_per_row[bits->num_rows - 1] == 60 * 8) {
+        uint8_t *b = bits->bb[bits->num_rows - 1];
+        for (int i = 21; i < 60; ++i) {
+            if (b[20] != b[i]) {
+                return;
+            }
+        }
+        // fprintf(stderr, "%s: preamble compression\n", __func__);
+        memset(&b[30], 0, 30);
+        bits->bits_per_row[bits->num_rows - 1] = 30 * 8;
     }
+*/
 }
 
 void bitbuffer_add_row(bitbuffer_t *bits)
 {
     if (bits->num_rows == 0)
-        bits->num_rows++; // Add first row automatically
-    if (bits->num_rows < BITBUF_ROWS) {
-        bits->num_rows++;
+        bits->free_row = bits->num_rows = 1; // Add first row automatically
+    if (bits->free_row == BITBUF_ROWS - 1) {
+        // fprintf(stderr, "%s: Warning: row count limit (%d rows) reached\n", __func__, BITBUF_ROWS);
+    }
+    if (bits->free_row < BITBUF_ROWS) {
+        bits->free_row++;
+        bits->num_rows = bits->free_row;
     }
     else {
         bits->bits_per_row[bits->num_rows - 1] = 0; // Clear last row to handle overflow somewhat gracefully
@@ -53,7 +89,7 @@ void bitbuffer_add_row(bitbuffer_t *bits)
 void bitbuffer_add_sync(bitbuffer_t *bits)
 {
     if (bits->num_rows == 0)
-        bits->num_rows++; // Add first row automatically
+        bits->free_row = bits->num_rows = 1; // Add first row automatically
     if (bits->bits_per_row[bits->num_rows - 1]) {
         bitbuffer_add_row(bits);
     }
@@ -64,12 +100,14 @@ void bitbuffer_invert(bitbuffer_t *bits)
 {
     for (unsigned row = 0; row < bits->num_rows; ++row) {
         if (bits->bits_per_row[row] > 0) {
+            uint8_t *b = bits->bb[row];
+
             const unsigned last_col  = (bits->bits_per_row[row] - 1) / 8;
             const unsigned last_bits = ((bits->bits_per_row[row] - 1) % 8) + 1;
             for (unsigned col = 0; col <= last_col; ++col) {
-                bits->bb[row][col] = ~bits->bb[row][col]; // Invert
+                b[col] = ~b[col]; // Invert
             }
-            bits->bb[row][last_col] ^= 0xFF >> last_bits; // Re-invert unused bits in last byte
+            b[last_col] ^= 0xFF >> last_bits; // Re-invert unused bits in last byte
         }
     }
 }
@@ -78,16 +116,18 @@ void bitbuffer_nrzs_decode(bitbuffer_t *bits)
 {
     for (unsigned row = 0; row < bits->num_rows; ++row) {
         if (bits->bits_per_row[row] > 0) {
+            uint8_t *b = bits->bb[row];
+
             const unsigned last_col  = (bits->bits_per_row[row] - 1) / 8;
             const unsigned last_bits = ((bits->bits_per_row[row] - 1) % 8) + 1;
 
             int prev = 0;
             for (unsigned col = 0; col <= last_col; ++col) {
-                int mask           = (prev << 7) | bits->bb[row][col] >> 1;
-                prev               = bits->bb[row][col];
-                bits->bb[row][col] = bits->bb[row][col] ^ ~mask;
+                int mask = (prev << 7) | b[col] >> 1;
+                prev     = b[col];
+                b[col]   = b[col] ^ ~mask;
             }
-            bits->bb[row][last_col] &= 0xFF << (8 - last_bits); // Clear unused bits in last byte
+            b[last_col] &= 0xFF << (8 - last_bits); // Clear unused bits in last byte
         }
     }
 }
@@ -96,16 +136,18 @@ void bitbuffer_nrzm_decode(bitbuffer_t *bits)
 {
     for (unsigned row = 0; row < bits->num_rows; ++row) {
         if (bits->bits_per_row[row] > 0) {
+            uint8_t *b = bits->bb[row];
+
             const unsigned last_col  = (bits->bits_per_row[row] - 1) / 8;
             const unsigned last_bits = ((bits->bits_per_row[row] - 1) % 8) + 1;
 
             int prev = 0;
             for (unsigned col = 0; col <= last_col; ++col) {
-                int mask           = (prev << 7) | bits->bb[row][col] >> 1;
-                prev               = bits->bb[row][col];
-                bits->bb[row][col] = bits->bb[row][col] ^ mask;
+                int mask = (prev << 7) | b[col] >> 1;
+                prev     = b[col];
+                b[col]   = b[col] ^ mask;
             }
-            bits->bb[row][last_col] &= 0xFF << (8 - last_bits); // Clear unused bits in last byte
+            b[last_col] &= 0xFF << (8 - last_bits); // Clear unused bits in last byte
         }
     }
 }
