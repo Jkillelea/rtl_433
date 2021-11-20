@@ -107,7 +107,7 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
     [17]  Cardin S466-TX2
     [18]  Fine Offset Electronics, WH2, WH5, Telldus Temperature/Humidity/Rain Sensor
     [19]  Nexus, FreeTec NC-7345, NX-3980, Solight TE82S, TFA 30.3209 temperature/humidity sensor
-    [20]  Ambient Weather, TFA 30.3208.02 temperature sensor
+    [20]  Ambient Weather F007TH, TFA 30.3208.02, SwitchDocLabs F016TH temperature sensor
     [21]  Calibeur RF-104 Sensor
     [22]  X10 RF
     [23]  DSC Security Contact
@@ -225,7 +225,7 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
     [139]  Norgo NGE101
     [140]  Elantra2012 TPMS
     [141]  Auriol HG02832, HG05124A-DCF, Rubicson 48957 temperature/humidity sensor
-    [142]  Fine Offset Electronics/ECOWITT WH51 Soil Moisture Sensor
+    [142]  Fine Offset Electronics/ECOWITT WH51, SwitchDoc Labs SM23 Soil Moisture Sensor
     [143]  Holman Industries iWeather WS5029 weather station (older PWM)
     [144]  TBH weather sensor
     [145]  WS2032 weather station
@@ -236,7 +236,7 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
     [150]* Klimalogg
     [151]  Visonic powercode
     [152]  Eurochron EFTH-800 temperature and humidity sensor
-    [153]  Cotech 36-7959 wireless weather station with USB
+    [153]  Cotech 36-7959, SwitchDocLabs FT020T wireless weather station with USB
     [154]  Standard Consumption Message Plus (SCMplus)
     [155]  Fine Offset Electronics WH1080/WH3080 Weather Station (FSK)
     [156]  Abarth 124 Spider TPMS
@@ -258,8 +258,8 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
     [172]  Bresser Weather Center 6-in-1, 7-in-1 indoor, new 5-in-1, 3-in-1 wind gauge, Froggit WH6000, Ventus C8488A
     [173]  Bresser Weather Center 7-in-1
     [174]  EcoDHOME Smart Socket and MCEE Solar monitor
-    [175]  LaCrosse Technology View LTV-R1 Rainfall Gauge
-    [176]  BlueLine Power Monitor
+    [175]  LaCrosse Technology View LTV-R1, LTV-R3 Rainfall Gauge, LTV-W1 Wind Sensor
+    [176]  BlueLine Innovations Power Cost Monitor
     [177]  Burnhard BBQ thermometer
     [178]  Security+ (Keyfob)
     [179]  Cavius smoke, heat and water detector
@@ -273,7 +273,7 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
     [187]  RojaFlex shutter and remote devices
     [188]  Marlec Solar iBoost+ sensors
     [189]  Somfy io-homecontrol
-    [190]  Ambient Weather (Fine Offset) WH31L Lightning-Strike sensor
+    [190]  Ambient Weather WH31L (FineOffset WH57) Lightning-Strike sensor
     [191]  Markisol, E-Motion, BOFU, Rollerhouse, BF-30x, BF-415 curtain remote
     [192]  Govee Water Leak Dectector H5054, Door Contact Sensor B5023
     [193]  Clipsal CMR113 Cent-a-meter power meter
@@ -282,6 +282,8 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
     [196]  Atech-WS308 temperature sensor
     [197]  Acurite Grill/Meat Thermometer 01185M
     [198]* EnOcean ERP1
+    [199]  Linear Megacode Garage/Gate Remotes
+    [200]* Auriol 4-LD5661 temperature/rain sensor
 
 * Disabled by default, use -R n or -G
 

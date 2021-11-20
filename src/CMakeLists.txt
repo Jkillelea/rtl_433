@@ -47,6 +47,7 @@ add_library(r_433 STATIC
     devices/ambientweather_wh31e.c
     devices/archos_tbh.c
     devices/atech_ws308.c
+    devices/auriol_4ld5661.c
     devices/auriol_aft77b2.c
     devices/auriol_afw2a1.c
     devices/auriol_ahfl.c
@@ -139,6 +140,7 @@ add_library(r_433 STATIC
     devices/maverick_et73.c
     devices/maverick_et73x.c
     devices/mebus.c
+    devices/megacode.c
     devices/missil_ml0757.c
     devices/new_template.c
     devices/newkaku.c
@@ -210,11 +212,9 @@ add_library(r_433 STATIC
     devices/x10_sec.c
 )
 
-if("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
-    set_source_files_properties(mongoose.c PROPERTIES COMPILE_FLAGS "-Wno-format -Wno-format-security")
-endif()
-if("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
-    set_source_files_properties(mongoose.c PROPERTIES COMPILE_FLAGS "-Wno-format-pedantic -Wno-format-security -Wno-large-by-value-copy")
+if("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU" OR "${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
+    # untouched upstream code, disable all warnings
+    set_source_files_properties(mongoose.c PROPERTIES COMPILE_FLAGS "-w")
 endif()
 
 add_executable(rtl_433 rtl_433.c)
