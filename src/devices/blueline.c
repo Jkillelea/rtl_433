@@ -9,6 +9,10 @@
     (at your option) any later version.
  */
 
+#include <stdlib.h>
+#include "fatal.h"
+#include "decoder.h"
+
 /**
 BlueLine Innovations Power Cost Monitor, tested with BLI-28000.
 
@@ -124,18 +128,13 @@ which you should then use as a parameter when you re-run rtl_433 in the future.
 
 Finally, passing a parameter to this decoder requires specifying it explicitly, which normally disables all
 other default decoders.  If you want to pass an option to this decoder without disabling all the other defaults,
-the simplest method is to explicity exclude this one decoder (which implicitly says to leave all other defaults
+the simplest method is to explicitly exclude this one decoder (which implicitly says to leave all other defaults
 enabled), then add this decoder back with a parameter.  The command line looks like this:
 
     rtl_433 -R -176 -R 176:45364
 
 */
 
-#include <stdlib.h>
-#include "fatal.h"
-#include "decoder.h"
-
-#define BLUELINE_MODEL "Blueline PowerCost Monitor"
 #define BLUELINE_BITLEN      32
 #define BLUELINE_STARTBYTE   0xFE
 #define BLUELINE_CRC_POLY    0x07
@@ -156,7 +155,8 @@ struct blueline_stateful_context {
     unsigned searching_for_new_id;
 };
 
-static uint8_t rev_crc8(uint8_t const message[], unsigned nBytes, uint8_t polynomial, uint8_t remainder) {
+static uint8_t rev_crc8(uint8_t const message[], unsigned nBytes, uint8_t polynomial, uint8_t remainder)
+{
     unsigned byte, bit;
 
     // Run a CRC backwards to find out what the init value would have been.
@@ -166,7 +166,7 @@ static uint8_t rev_crc8(uint8_t const message[], unsigned nBytes, uint8_t polyno
     // This logic only works assuming the polynomial has the lowest bit set,
     // Which should be true for most CRC polynomials, but let's be safe...
     if ((polynomial & 0x01) == 0) {
-        fprintf(stderr,"Cannot run reverse CRC-8 with this polynomial!\n");
+        fprintf(stderr, "Cannot run reverse CRC-8 with this polynomial!\n");
         return 0xFF;
     }
     polynomial = (polynomial >> 1) | 0x80;
@@ -177,16 +177,15 @@ static uint8_t rev_crc8(uint8_t const message[], unsigned nBytes, uint8_t polyno
         while (bit--) {
             if (remainder & 0x01) {
                 remainder = (remainder >> 1) ^ polynomial;
-            } else {
+            }
+            else {
                 remainder = remainder >> 1;
             }
-
         }
         remainder ^= message[byte];
     }
     return remainder;
 }
-
 
 static uint16_t guess_blueline_id(r_device *decoder, const uint8_t *current_row)
 {
@@ -304,7 +303,7 @@ static int blueline_decode(r_device *decoder, bitbuffer_t *bitbuffer)
             const uint16_t received_sensor_id = ((current_row[2] << 8) | current_row[1]);
             /* clang-format off */
             data = data_make(
-                    "model",        "",             DATA_STRING, BLUELINE_MODEL,
+                    "model",        "",             DATA_STRING, "Blueline-PowerCost",
                     "id",           "",             DATA_INT,    received_sensor_id,
                     "mic",          "Integrity",    DATA_STRING, "CRC",
                     NULL);
@@ -322,7 +321,7 @@ static int blueline_decode(r_device *decoder, bitbuffer_t *bitbuffer)
             const uint16_t ms_per_pulse = offset_payload_u16;
             /* clang-format off */
             data = data_make(
-                    "model",        "",             DATA_STRING, BLUELINE_MODEL,
+                    "model",        "",             DATA_STRING, "Blueline-PowerCost",
                     "id",           "",             DATA_INT,    context->current_sensor_id,
                     "gap",          "",             DATA_INT,    ms_per_pulse,
                     "mic",          "Integrity",    DATA_STRING, "CRC",
@@ -362,7 +361,7 @@ static int blueline_decode(r_device *decoder, bitbuffer_t *bitbuffer)
             const float temperature_C = (0.436 * temperature) - 30.36;
             /* clang-format off */
             data = data_make(
-                    "model",            "",             DATA_STRING, BLUELINE_MODEL,
+                    "model",            "",             DATA_STRING, "Blueline-PowerCost",
                     "id",               "",             DATA_INT,    context->current_sensor_id,
                     "flags",            "",             DATA_FORMAT, "%02x", DATA_INT, flags,
                     "battery_ok",       "Battery",      DATA_INT,    !battery,
@@ -377,7 +376,7 @@ static int blueline_decode(r_device *decoder, bitbuffer_t *bitbuffer)
             const uint16_t pulses = offset_payload_u16;
             /* clang-format off */
             data = data_make(
-                    "model",            "",             DATA_STRING, BLUELINE_MODEL,
+                    "model",            "",             DATA_STRING, "Blueline-PowerCost",
                     "id",               "",             DATA_INT, context->current_sensor_id,
                     "impulses",         "",             DATA_INT,    pulses,
                     "mic",              "Integrity",    DATA_STRING, "CRC",
@@ -419,7 +418,7 @@ static r_device *blueline_create(char *arg)
         free(r_dev);
         return NULL; // NOTE: returns NULL on alloc failure.
     }
-    memset(context,0,sizeof(*context));
+    memset(context, 0, sizeof(*context));
     r_dev->decode_ctx = context;
 
     if (arg != NULL) {
@@ -438,7 +437,7 @@ static r_device *blueline_create(char *arg)
 }
 
 r_device blueline = {
-        .name        = "BlueLine Power Monitor",
+        .name        = "BlueLine Innovations Power Cost Monitor",
         .modulation  = OOK_PULSE_PPM,
         .short_width = 500,
         .long_width  = 1000,
@@ -446,7 +445,5 @@ r_device blueline = {
         .reset_limit = 8000,
         .decode_fn   = &blueline_decode,
         .create_fn   = &blueline_create,
-        .disabled    = 0,
         .fields      = output_fields,
 };
-

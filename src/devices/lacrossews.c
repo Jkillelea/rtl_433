@@ -79,8 +79,8 @@ static int lacrossews_detect(r_device *decoder, uint8_t *pRow, uint8_t *msg_nybb
     if (!checksum_ok) {
         if (decoder->verbose > 1) {
             fprintf(stderr,
-                "LaCrosse Packet Validation Failed error: Checksum Comp. %d != Recv. %d, Parity %d\n",
-                checksum, msg_nybbles[12], parity);
+                    "LaCrosse Packet Validation Failed error: Checksum Comp. %d != Recv. %d, Parity %d\n",
+                    checksum, msg_nybbles[12], parity);
             bitrow_print(msg_nybbles, LACROSSE_WS_BITLEN);
         }
         return DECODE_FAIL_MIC;
@@ -100,7 +100,7 @@ static int lacrossews_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     float temp_c, wind_dir, wind_spd, rain_mm;
     data_t *data;
 
-    for (row = 0; row < BITBUF_ROWS; row++) {
+    for (row = 0; row < bitbuffer->num_rows; row++) {
         // break out the message nybbles into separate bytes
         if (lacrossews_detect(decoder, bitbuffer->bb[row], msg_nybbles, bitbuffer->bits_per_row[row]) <= 0)
             continue; // DECODE_ABORT_EARLY
@@ -228,6 +228,5 @@ r_device lacrossews = {
         .long_width  = 1464,
         .reset_limit = 8000,
         .decode_fn   = &lacrossews_callback,
-        .disabled    = 0,
         .fields      = output_fields,
 };

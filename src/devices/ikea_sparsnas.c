@@ -78,7 +78,6 @@ detail. Many thanks to kodarn!
 #define IKEA_SPARSNAS_MESSAGE_BITLEN_MAX 260 // Just for early sanity checks
 
 #define IKEA_SPARSNAS_PREAMBLE_BITLEN 32
-static const uint8_t preamble_pattern[4] = {0xAA, 0xAA, 0xD2, 0x01};
 
 #define IKEA_SPARSNAS_CRC_INIT 0xffff
 #define IKEA_SPARSNAS_CRC_POLY 0x8005
@@ -135,6 +134,7 @@ static uint32_t ikea_sparsnas_brute_force_encryption(uint8_t buffer[18])
 
 static int ikea_sparsnas_decode(r_device *decoder, bitbuffer_t *bitbuffer)
 {
+    uint8_t const preamble_pattern[4] = {0xAA, 0xAA, 0xD2, 0x01};
 
     if ((bitbuffer->bits_per_row[0] < IKEA_SPARSNAS_MESSAGE_BITLEN) || (bitbuffer->bits_per_row[0] > IKEA_SPARSNAS_MESSAGE_BITLEN_MAX)) {
         if (decoder->verbose > 1) {
@@ -145,7 +145,7 @@ static int ikea_sparsnas_decode(r_device *decoder, bitbuffer_t *bitbuffer)
     }
 
     // Look for preamble
-    uint16_t bitpos = bitbuffer_search(bitbuffer, 0, 0, (const uint8_t *)&preamble_pattern, IKEA_SPARSNAS_PREAMBLE_BITLEN);
+    uint16_t bitpos = bitbuffer_search(bitbuffer, 0, 0, preamble_pattern, IKEA_SPARSNAS_PREAMBLE_BITLEN);
 
     if ((bitbuffer->bits_per_row[0] == bitpos) || (bitpos + IKEA_SPARSNAS_MESSAGE_BITLEN > bitbuffer->bits_per_row[0])) {
         if (decoder->verbose > 1) {
@@ -224,13 +224,14 @@ static int ikea_sparsnas_decode(r_device *decoder, bitbuffer_t *bitbuffer)
 
     if ((!ikea_sparsnas_sensor_id) || (rcv_sensor_id != ikea_sparsnas_sensor_id)) {
 
-        data_t *data;
-        data = data_make(
-            "model",         "Model",               DATA_STRING, "Ikea-Sparsnas",
-            "id",            "Sensor ID",           DATA_INT, ikea_sparsnas_sensor_id,
-            "mic",           "Integrity",           DATA_STRING,    "CRC",
-            NULL
-        );
+        /* clang-format off */
+        data_t *data = data_make(
+                "model",         "Model",               DATA_STRING, "Ikea-Sparsnas",
+                "id",            "Sensor ID",           DATA_INT, ikea_sparsnas_sensor_id,
+                "mic",           "Integrity",           DATA_STRING,    "CRC",
+                NULL);
+        /* clang-format on */
+
         decoder_output_data(decoder, data);
         return 1;
     }
@@ -285,27 +286,26 @@ static int ikea_sparsnas_decode(r_device *decoder, bitbuffer_t *bitbuffer)
 }
 
 static char *output_fields[] = {
-    "model",
-    "id",
-    "sequence",
-    "battery_ok",
-    "pulses_per_kwh",
-    "cumulative_kWh",
-    "effect",
-    "pulses",
-    "mode",
-    "mic",
-    NULL,
+        "model",
+        "id",
+        "sequence",
+        "battery_ok",
+        "pulses_per_kwh",
+        "cumulative_kWh",
+        "effect",
+        "pulses",
+        "mode",
+        "mic",
+        NULL,
 };
 
 r_device ikea_sparsnas = {
-    .name          = "IKEA Sparsnas Energy Meter Monitor",
-    .modulation    = FSK_PULSE_PCM,
-    .short_width   = 27,
-    .long_width    = 27,
-    .gap_limit     = 1000,
-    .reset_limit   = 3000,
-    .decode_fn     = &ikea_sparsnas_decode,
-    .disabled      = 0,
-    .fields        = output_fields,
+        .name        = "IKEA Sparsnas Energy Meter Monitor",
+        .modulation  = FSK_PULSE_PCM,
+        .short_width = 27,
+        .long_width  = 27,
+        .gap_limit   = 1000,
+        .reset_limit = 3000,
+        .decode_fn   = &ikea_sparsnas_decode,
+        .fields      = output_fields,
 };

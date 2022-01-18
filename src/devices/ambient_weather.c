@@ -13,7 +13,8 @@
 /**
 Ambient Weather F007TH Thermo-Hygrometer.
 
-Also TFA senders 30.3208.02 from the TFA "Klima-Monitor" 30.3054
+Also: TFA senders 30.3208.02 from the TFA "Klima-Monitor" 30.3054,
+also: SwitchDoc Labs F016TH.
 
 The check is an LFSR Digest-8, gen 0x98, key 0x3e, init 0x64
 */
@@ -30,9 +31,9 @@ static int ambient_weather_decode(r_device *decoder, bitbuffer_t *bitbuffer, uns
     int humidity;
     data_t *data;
 
-    bitbuffer_extract_bytes(bitbuffer, row, bitpos, b, 6*8);
+    bitbuffer_extract_bytes(bitbuffer, row, bitpos, b, 6 * 8);
 
-    uint8_t expected = b[5];
+    uint8_t expected   = b[5];
     uint8_t calculated = lfsr_digest8(b, 5, 0x98, 0x3e) ^ 0x64;
 
     if (expected != calculated) {
@@ -42,12 +43,13 @@ static int ambient_weather_decode(r_device *decoder, bitbuffer_t *bitbuffer, uns
         return DECODE_FAIL_MIC;
     }
 
-    deviceID = b[1];
+    // int model_number = b[0] & 0x0F; // fixed 0x05, at least for "SwitchDoc Labs F016TH"
+    deviceID     = b[1];
     isBatteryLow = (b[2] & 0x80) != 0; // if not zero, battery is low
-    channel = ((b[2] & 0x70) >> 4) + 1;
-    int temp_f = ((b[2] & 0x0f) << 8) | b[3];
-    temperature = (temp_f - 400) * 0.1f;
-    humidity = b[4];
+    channel      = ((b[2] & 0x70) >> 4) + 1;
+    int temp_f   = ((b[2] & 0x0f) << 8) | b[3];
+    temperature  = (temp_f - 400) * 0.1f;
+    humidity     = b[4];
 
     /* clang-format off */
     data = data_make(
@@ -84,19 +86,19 @@ static int ambient_weather_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     for (row = 0; row < bitbuffer->num_rows; ++row) {
         bitpos = 0;
         // Find a preamble with enough bits after it that it could be a complete packet
-        while ((bitpos = bitbuffer_search(bitbuffer, row, bitpos,
-                (const uint8_t *)&preamble_pattern, 12)) + 8+6*8 <=
+        while ((bitpos = bitbuffer_search(bitbuffer, row, bitpos, preamble_pattern, 12)) + 8 + 6 * 8 <=
                 bitbuffer->bits_per_row[row]) {
             ret = ambient_weather_decode(decoder, bitbuffer, row, bitpos + 8);
-            if (ret > 0) return ret; // for now, break after first successful message
+            if (ret > 0)
+                return ret; // for now, break after first successful message
             bitpos += 16;
         }
         bitpos = 0;
-        while ((bitpos = bitbuffer_search(bitbuffer, row, bitpos,
-                (const uint8_t *)&preamble_inverted, 12)) + 8+6*8 <=
+        while ((bitpos = bitbuffer_search(bitbuffer, row, bitpos, preamble_inverted, 12)) + 8 + 6 * 8 <=
                 bitbuffer->bits_per_row[row]) {
             ret = ambient_weather_decode(decoder, bitbuffer, row, bitpos + 8);
-            if (ret > 0) return ret; // for now, break after first successful message
+            if (ret > 0)
+                return ret; // for now, break after first successful message
             bitpos += 15;
         }
     }
@@ -118,12 +120,11 @@ static char *output_fields[] = {
 };
 
 r_device ambient_weather = {
-        .name        = "Ambient Weather, TFA 30.3208.02 temperature sensor",
+        .name        = "Ambient Weather F007TH, TFA 30.3208.02, SwitchDocLabs F016TH temperature sensor",
         .modulation  = OOK_PULSE_MANCHESTER_ZEROBIT,
         .short_width = 500,
         .long_width  = 0, // not used
         .reset_limit = 2400,
         .decode_fn   = &ambient_weather_callback,
-        .disabled    = 0,
         .fields      = output_fields,
 };
