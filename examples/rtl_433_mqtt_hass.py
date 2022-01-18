@@ -172,7 +172,7 @@ mappings = {
             "device_class": "battery",
             "name": "Battery",
             "unit_of_measurement": "%",
-            "value_template": "{{ float(value|int) * 99 + 1 }}",
+            "value_template": "{{ float(value) * 99 + 1 }}",
             "state_class": "measurement"
         }
     },
@@ -193,7 +193,7 @@ mappings = {
         "device_type": "sensor",
         "object_suffix": "H",
         "config": {
-            "device_class": "moisture",
+            "device_class": "humidity",
             "name": "Moisture",
             "unit_of_measurement": "%",
             "value_template": "{{ value|float }}",
@@ -240,7 +240,6 @@ mappings = {
         "device_type": "sensor",
         "object_suffix": "WS",
         "config": {
-            "device_class": "weather",
             "name": "Wind Speed",
             "unit_of_measurement": "km/h",
             "value_template": "{{ value|float }}",
@@ -252,7 +251,6 @@ mappings = {
         "device_type": "sensor",
         "object_suffix": "WS",
         "config": {
-            "device_class": "weather",
             "name": "Wind Speed",
             "unit_of_measurement": "mi/h",
             "value_template": "{{ value|float }}",
@@ -266,7 +264,7 @@ mappings = {
         "config": {
             "name": "Wind Average",
             "unit_of_measurement": "km/h",
-            "value_template": "{{ float(value|float) * 3.6 | round(2) }}",
+            "value_template": "{{ (float(value|float) * 3.6) | round(2) }}",
             "state_class": "measurement"
         }
     },
@@ -292,6 +290,17 @@ mappings = {
             "state_class": "measurement"
         }
     },
+  
+    "wind_max_km_h": {
+        "device_type": "sensor",
+        "object_suffix": "GS",
+        "config": {
+            "name": "Wind max speed",
+            "unit_of_measurement": "km/h",
+            "value_template": "{{ value|float }}",
+            "state_class": "measurement"
+        }
+    },
 
     "wind_max_m_s": {
         "device_type": "sensor",
@@ -299,7 +308,7 @@ mappings = {
         "config": {
             "name": "Wind max",
             "unit_of_measurement": "km/h",
-            "value_template": "{{ float(value|float) * 3.6 | round(2) }}",
+            "value_template": "{{ (float(value|float) * 3.6) | round(2) }}",
             "state_class": "measurement"
         }
     },
@@ -354,7 +363,7 @@ mappings = {
         "config": {
             "name": "Rain Total",
             "unit_of_measurement": "mm",
-            "value_template": "{{ float(value|float) * 25.4 | round(2) }}",
+            "value_template": "{{ (float(value|float) * 25.4) | round(2) }}",
             "state_class": "total_increasing"
         }
     },
@@ -365,7 +374,7 @@ mappings = {
         "config": {
             "name": "Rain Rate",
             "unit_of_measurement": "mm/h",
-            "value_template": "{{ float(value|float) * 25.4 | round(2) }}",
+            "value_template": "{{ (float(value|float) * 25.4) | round(2) }}",
             "state_class": "measurement"
         }
     },
@@ -448,11 +457,19 @@ mappings = {
         }
     },
 
-    "lux": {
+    "light_lux": {
         "device_type": "sensor",
         "object_suffix": "lux",
         "config": {
-            "device_class": "weather",
+            "name": "Outside Luminancee",
+            "unit_of_measurement": "lux",
+            "value_template": "{{ value|int }}"
+        }
+    },
+    "light_lux": {
+        "device_type": "sensor",
+        "object_suffix": "lux",
+        "config": {
             "name": "Outside Luminancee",
             "unit_of_measurement": "lux",
             "value_template": "{{ value|int }}",
@@ -464,7 +481,15 @@ mappings = {
         "device_type": "sensor",
         "object_suffix": "uv",
         "config": {
-            "device_class": "weather",
+            "name": "UV Index",
+            "unit_of_measurement": "UV Index",
+            "value_template": "{{ value|int }}"
+        }
+    },
+    "uvi": {
+        "device_type": "sensor",
+        "object_suffix": "uvi",
+        "config": {
             "name": "UV Index",
             "unit_of_measurement": "UV Index",
             "value_template": "{{ value|int }}",
@@ -503,6 +528,7 @@ mappings = {
             "state_class": "total_increasing"
         }
     },
+
 }
 
 

@@ -83,6 +83,44 @@
 #endif
 #endif
 
+// STDERR_FILENO is not defined in at least MSVC
+#ifndef STDERR_FILENO
+#define STDERR_FILENO 2
+#endif
+
+#ifdef _WIN32
+#include <windows.h>
+#define usleep(us) Sleep((us) / 1000)
+#endif
+
+typedef struct timeval delay_timer_t;
+
+static void delay_timer_init(delay_timer_t *delay_timer)
+{
+    // set to current wall clock
+    get_time_now(delay_timer);
+}
+
+static void delay_timer_wait(delay_timer_t *delay_timer, unsigned delay_us)
+{
+    // sync to wall clock
+    struct timeval now_tv;
+    get_time_now(&now_tv);
+
+    time_t elapsed_s  = now_tv.tv_sec - delay_timer->tv_sec;
+    time_t elapsed_us = 1000000 * elapsed_s + now_tv.tv_usec - delay_timer->tv_usec;
+
+    // set next wanted start time
+    delay_timer->tv_usec += delay_us;
+    while (delay_timer->tv_usec > 1000000) {
+        delay_timer->tv_usec -= 1000000;
+        delay_timer->tv_sec += 1;
+    }
+
+    if ((time_t)delay_us > elapsed_us)
+        usleep(delay_us - elapsed_us);
+}
+
 r_device *flex_create_device(char *spec); // maybe put this in some header file?
 
 static void print_version(void)
@@ -135,7 +173,7 @@ static void usage(int exit_code)
             "  [-w <filename> | help] Save data stream to output file (a '-' dumps samples to stdout)\n"
             "  [-W <filename> | help] Save data stream to output file, overwrite existing file\n"
             "\t\t= Data output options =\n"
-            "  [-F kv | json | csv | mqtt | influx | syslog | null | help] Produce decoded output in given format.\n"
+            "  [-F kv | json | csv | mqtt | influx | syslog | trigger | null | help] Produce decoded output in given format.\n"
             "       Append output to file with :<filename> (e.g. -F csv:log.csv), defaults to stdout.\n"
             "       Specify host/port for syslog with e.g. -F syslog:127.0.0.1:1514\n"
             "  [-M time[:<options>] | protocol | level | noise[:secs] | stats | bits | help] Add various meta data to each output.\n"
@@ -211,12 +249,12 @@ static void help_output(void)
 {
     term_help_printf(
             "\t\t= Output format option =\n"
-            "  [-F kv|json|csv|mqtt|influx|syslog|null] Produce decoded output in given format.\n"
+            "  [-F kv|json|csv|mqtt|influx|syslog|trigger|null] Produce decoded output in given format.\n"
             "\tWithout this option the default is KV output. Use \"-F null\" to remove the default.\n"
             "\tAppend output to file with :<filename> (e.g. -F csv:log.csv), defaults to stdout.\n"
             "\tSpecify MQTT server with e.g. -F mqtt://localhost:1883\n"
             "\tAdd MQTT options with e.g. -F \"mqtt://host:1883,opt=arg\"\n"
-            "\tMQTT options are: user=foo, pass=bar, retain[=0|1], qos=N, <format>[=topic]\n"
+            "\tMQTT options are: user=foo, pass=bar, retain[=0|1], <format>[=topic]\n"
             "\tSupported MQTT formats: (default is all)\n"
             "\t  events: posts JSON event data\n"
             "\t  states: posts JSON state data\n"
@@ -269,6 +307,7 @@ static void help_meta(void)
             "\tUse \"time:utc\" to output time in UTC.\n"
             "\t\t(this may also be accomplished by invocation with TZ environment variable set).\n"
             "\t\t\"usec\" and \"utc\" can be combined with other options, eg. \"time:unix:utc:usec\".\n"
+            "\tUse \"replay[:N]\" to replay file inputs at (N-times) realtime.\n"
             "\tUse \"protocol\" / \"noprotocol\" to output the decoder protocol number meta data.\n"
             "\tUse \"level\" to add Modulation, Frequency, RSSI, SNR, and Noise meta data.\n"
             "\tUse \"noise[:secs]\" to report estimated noise level at intervals (default: 10 seconds).\n"
@@ -905,7 +944,7 @@ static void parse_conf_option(r_cfg_t *cfg, int opt, char *arg)
             help_read();
 
         add_infile(cfg, arg);
-        // TODO: check_read_file_info()
+        // TODO: file_info_check_read()
         break;
     case 'w':
         if (!arg)
@@ -1013,13 +1052,15 @@ static void parse_conf_option(r_cfg_t *cfg, int opt, char *arg)
         else if (!strcasecmp(arg, "oldmodel"))
             fprintf(stderr, "oldmodel option (-M) is deprecated.\n");
         else if (!strncasecmp(arg, "stats", 5)) {
-            // there also should be options to set wether to flush on report
+            // there also should be options to set whether to flush on report
             char *p = arg_param(arg);
             cfg->report_stats = atoiv(p, 1);
             cfg->stats_interval = atoiv(arg_param(p), 600); // atoi_time_default()
             time(&cfg->stats_time);
             cfg->stats_time += cfg->stats_interval;
         }
+        else if (!strncasecmp(arg, "replay", 6))
+            cfg->in_replay = atobv(arg_param(arg), 1);
         else
             cfg->report_meta = atobv(arg, 1);
         break;
@@ -1096,6 +1137,9 @@ static void parse_conf_option(r_cfg_t *cfg, int opt, char *arg)
         }
         else if (strncmp(optarg, "http", 4) == 0) {
             add_http_output(cfg, arg_param(optarg));
+        }
+        else if (strncmp(arg, "trigger", 7) == 0) {
+            add_trigger_output(cfg, arg_param(arg));
         }
         else if (strncmp(arg, "null", 4) == 0) {
             add_null_output(cfg, arg_param(arg));
@@ -1201,23 +1245,27 @@ static r_cfg_t g_cfg;
 #define SIGINFO 29
 #endif
 
+// NOTE: printf is not async safe per signal-safety(7)
+// writes a static string, without the terminating zero, to stderr, ignores return value
+#define write_err(s) (void)!write(STDERR_FILENO, (s), sizeof(s) - 1)
+
 #ifdef _WIN32
 BOOL WINAPI
 console_handler(int signum)
 {
     if (CTRL_C_EVENT == signum) {
-        fprintf(stderr, "Signal caught, exiting!\n");
+        write_err("Signal caught, exiting!\n");
         g_cfg.exit_async = 1;
         sdr_stop(g_cfg.dev);
         return TRUE;
     }
     else if (CTRL_BREAK_EVENT == signum) {
-        fprintf(stderr, "CTRL-BREAK detected, hopping to next frequency (-f). Use CTRL-C to quit.\n");
+        write_err("CTRL-BREAK detected, hopping to next frequency (-f). Use CTRL-C to quit.\n");
         g_cfg.hop_now = 1;
         return TRUE;
     }
     else if (signum == SIGALRM) {
-        fprintf(stderr, "Async read stalled, exiting!\n");
+        write_err("Async read stalled, exiting!\n");
         g_cfg.exit_code = 3;
         g_cfg.exit_async = 1;
         sdr_stop(g_cfg.dev);
@@ -1248,11 +1296,11 @@ static void sighandler(int signum)
         return;
     }
     else if (signum == SIGALRM) {
-        fprintf(stderr, "Async read stalled, exiting!\n");
+        write_err("Async read stalled, exiting!\n");
         g_cfg.exit_code = 3;
     }
     else {
-        fprintf(stderr, "Signal caught, exiting!\n");
+        write_err("Signal caught, exiting!\n");
     }
     g_cfg.exit_async = 1;
     sdr_stop(g_cfg.dev);
@@ -1343,6 +1391,8 @@ int main(int argc, char **argv) {
     if (cfg->frequencies > 1 && cfg->hop_times == 0) {
         cfg->hop_time[cfg->hop_times++] = DEFAULT_HOP_TIME;
     }
+    // save sample rate, this should be a hop config too
+    uint32_t sample_rate_0 = cfg->samp_rate;
 
     // add all remaining positional arguments as input files
     while (argc > optind) {
@@ -1561,8 +1611,13 @@ int main(int argc, char **argv) {
         for (void **iter = cfg->in_files.elems; iter && *iter; ++iter) {
             cfg->in_filename = *iter;
 
-            parse_file_info(cfg->in_filename, &demod->load_info);
-            if (strcmp(demod->load_info.path, "-") == 0) { /* read samples from stdin */
+            file_info_clear(&demod->load_info); // reset all info
+            file_info_parse_filename(&demod->load_info, cfg->in_filename);
+            // apply file info or default
+            cfg->samp_rate        = demod->load_info.sample_rate ? demod->load_info.sample_rate : sample_rate_0;
+            cfg->center_frequency = demod->load_info.center_frequency ? demod->load_info.center_frequency : cfg->frequency[0];
+
+            if (strcmp(demod->load_info.path, "-") == 0) { // read samples from stdin
                 in_file = stdin;
                 cfg->in_filename = "<stdin>";
             } else {
@@ -1574,12 +1629,13 @@ int main(int argc, char **argv) {
             }
             fprintf(stderr, "Test mode active. Reading samples from file: %s\n", cfg->in_filename);  // Essential information (not quiet)
             if (demod->load_info.format == CU8_IQ
+                    || demod->load_info.format == CS8_IQ
                     || demod->load_info.format == S16_AM
                     || demod->load_info.format == S16_FM) {
                 demod->sample_size = sizeof(uint8_t) * 2; // CU8, AM, FM
             } else if (demod->load_info.format == CS16_IQ
                     || demod->load_info.format == CF32_IQ) {
-                demod->sample_size = sizeof(int16_t) * 2; // CF32, CS16
+                demod->sample_size = sizeof(int16_t) * 2; // CS16, CF32 (after conversion)
             } else if (demod->load_info.format == PULSE_OOK) {
                 // ignore
             } else {
@@ -1632,7 +1688,18 @@ int main(int argc, char **argv) {
             // default case for file-inputs
             int n_blocks = 0;
             unsigned long n_read;
+            delay_timer_t delay_timer;
+            delay_timer_init(&delay_timer);
             do {
+                // Replay in realtime if requested
+                if (cfg->in_replay) {
+                    // per block delay
+                    unsigned delay_us = (unsigned)(1000000llu * DEFAULT_BUF_LENGTH / cfg->samp_rate / demod->sample_size / cfg->in_replay);
+                    if (demod->load_info.format == CF32_IQ)
+                        delay_us /= 2; // adjust for float only reading half as many samples
+                    delay_timer_wait(&delay_timer, delay_us);
+                }
+                // Convert CF32 file to CS16 buffer
                 if (demod->load_info.format == CF32_IQ) {
                     n_read = fread(test_mode_float_buf, sizeof(float), DEFAULT_BUF_LENGTH / 2, in_file);
                     // clamp float to [-1,1] and scale to Q0.15
@@ -1647,6 +1714,13 @@ int main(int argc, char **argv) {
                     n_read *= 2; // convert to byte count
                 } else {
                     n_read = fread(test_mode_buf, 1, DEFAULT_BUF_LENGTH, in_file);
+
+                    // Convert CS8 file to CU8 buffer
+                    if (demod->load_info.format == CS8_IQ) {
+                        for (unsigned long n = 0; n < n_read; n++) {
+                            test_mode_buf[n] = ((int8_t)test_mode_buf[n]) + 128;
+                        }
+                    }
                 }
                 if (n_read == 0) break;  // sdr_callback() will Segmentation Fault with len=0
                 demod->sample_file_pos = ((float)n_blocks * DEFAULT_BUF_LENGTH + n_read) / cfg->samp_rate / demod->sample_size;

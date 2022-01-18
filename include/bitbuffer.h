@@ -23,6 +23,7 @@
 #define BITBUF_COLS 128 // Number of bytes in a column
 #define BITBUF_ROWS 50
 #endif
+#define BITBUF_MAX_ROW_BITS (BITBUF_ROWS * BITBUF_COLS * 8) // Maximum number of bits per row, max UINT16_MAX
 #define BITBUF_MAX_PRINT_BITS 50 // Maximum number of bits to print (in addition to hex values)
 
 typedef uint8_t bitrow_t[BITBUF_COLS];
@@ -77,7 +78,16 @@ void bitrow_print(uint8_t const *bitrow, unsigned bit_len);
 void bitrow_debug(uint8_t const *bitrow, unsigned bit_len);
 
 /// Print the content of a bit row (byte buffer) to a string buffer.
-/// The output is always null-terminated, unless size is 0.
+///
+/// Write at most @p size - 1 characters,
+/// the output is always null-terminated, unless size is 0.
+///
+/// @param bitrow the row of bytes to print
+/// @param bit_len the number of bits in @p bitrow to print
+/// @param str an output string buffer of sufficient size
+/// @param size the size of @p str
+///
+/// @return the number of characters printed (not including the trailing `\0`).
 int bitrow_snprint(uint8_t const *bitrow, unsigned bit_len, char *str, unsigned size);
 
 /// Parse a string into a bitbuffer.

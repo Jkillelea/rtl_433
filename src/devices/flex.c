@@ -133,8 +133,8 @@ static void render_getters(data_t *data, uint8_t *bits, struct flex_params *para
                     NULL);
             } else {
                 data_append(data,
-                    getter->name, "", DATA_INT, val,
-                    NULL);
+                        getter->name, "", DATA_INT, val,
+                        NULL);
             }
         }
     }
@@ -147,7 +147,7 @@ static int flex_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     data_t *data;
     data_t *row_data[BITBUF_ROWS];
     char *row_codes[BITBUF_ROWS];
-    char row_bytes[BITBUF_COLS * 2 + 1];
+    char row_bytes[BITBUF_ROWS * BITBUF_COLS * 2 + 1]; // TODO: this is a lot of stack
 
     struct flex_params *params = decoder->decode_ctx;
 
@@ -242,7 +242,7 @@ static int flex_callback(r_device *decoder, bitbuffer_t *bitbuffer)
 
         /* clang-format off */
         data = data_make(
-                "model", "", DATA_STRING, params->name, // "User-defined model"
+                "model", "", DATA_STRING, params->name, // "User-defined"
                 "count", "", DATA_INT, match_count,
                 "num_rows", "", DATA_INT, bitbuffer->num_rows,
                 "len", "", DATA_INT, bitbuffer->bits_per_row[r],
@@ -260,7 +260,7 @@ static int flex_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     if (params->count_only) {
         /* clang-format off */
         data = data_make(
-                "model", "", DATA_STRING, params->name, // "User-defined model"
+                "model", "", DATA_STRING, params->name, // "User-defined"
                 "count", "", DATA_INT, match_count,
                 NULL);
         /* clang-format on */
@@ -291,7 +291,7 @@ static int flex_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     }
     /* clang-format off */
     data = data_make(
-            "model", "", DATA_STRING, params->name, // "User-defined model"
+            "model", "", DATA_STRING, params->name, // "User-defined"
             "count", "", DATA_INT, match_count,
             "num_rows", "", DATA_INT, bitbuffer->num_rows,
             "rows", "", DATA_ARRAY, data_array(bitbuffer->num_rows, DATA_DATA, row_data),
@@ -338,6 +338,7 @@ static void help()
             "\treset=<reset> (or: r=<reset>)\n"
             "\tgap=<gap> (or: g=<gap>)\n"
             "\ttolerance=<tolerance> (or: t=<tolerance>)\n"
+            "\tpriority=<n> : run decoder only as fallback\n"
             "where:\n"
             "<name> can be any descriptive name tag you need in the output\n"
             "<modulation> is one of:\n"
@@ -573,6 +574,8 @@ r_device *flex_create_device(char *spec)
             dev->reset_limit = atoi(val);
         else if (!strcasecmp(key, "t") || !strcasecmp(key, "tolerance"))
             dev->tolerance = atoi(val);
+        else if (!strcasecmp(key, "prio") || !strcasecmp(key, "priority"))
+            dev->priority = atoi(val);
 
         else if (!strcasecmp(key, "bits>"))
             params->min_bits = val ? atoi(val) : 0;
