@@ -219,6 +219,7 @@
     DECL(tpms_ave) \
     DECL(simplisafe_gen3) \
     DECL(yale_hsa) \
+    DECL(regency_fan) \
 
     /* Add new decoders here. */
 
