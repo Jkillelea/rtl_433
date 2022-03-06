@@ -37,9 +37,10 @@
 #include "pulse_analyzer.h"
 #include "pulse_detect.h"
 #include "pulse_detect_fsk.h"
-#include "pulse_demod.h"
+#include "pulse_slicer.h"
 #include "rfraw.h"
 #include "data.h"
+#include "raw_output.h"
 #include "r_util.h"
 #include "optparse.h"
 #include "abuf.h"
@@ -147,12 +148,11 @@ static void usage(int exit_code)
             "       e.g. -t \"antenna=A,bandwidth=4.5M,rfnotch_ctrl=false\"\n"
             "  [-f <frequency>] Receive frequency(s) (default: %i Hz)\n"
             "  [-H <seconds>] Hop interval for polling of multiple frequencies (default: %i seconds)\n"
-            "  [-p <ppm_error] Correct rtl-sdr tuner frequency offset error (default: 0)\n"
+            "  [-p <ppm_error>] Correct rtl-sdr tuner frequency offset error (default: 0)\n"
             "  [-s <sample rate>] Set sample rate (default: %i Hz)\n"
             "\t\t= Demodulator options =\n"
             "  [-R <device> | help] Enable only the specified device decoding protocol (can be used multiple times)\n"
             "       Specify a negative number to disable a device decoding protocol (can be used multiple times)\n"
-            "  [-G] Enable blacklisted device decoding protocols, for testing only.\n"
             "  [-X <spec> | help] Add a general purpose decoder (prepend -R 0 to disable all decoders)\n"
             "  [-Y auto | classic | minmax] FSK pulse detector mode.\n"
             "  [-Y level=<dB level>] Manual detection level used to determine pulses (-1.0 to -30.0) (0=auto).\n"
@@ -364,6 +364,12 @@ static void sdr_callback(unsigned char *iq_buf, uint32_t len, void *ctx)
     struct dm_state *demod = cfg->demod;
     char time_str[LOCAL_TIME_BUFLEN];
     unsigned long n_samples;
+
+    // do this here and not in sdr_handler so realtime replay can use rtl_tcp output
+    for (void **iter = cfg->raw_handler.elems; iter && *iter; ++iter) {
+        raw_output_t *output = *iter;
+        raw_output_frame(output, iq_buf, len);
+    }
 
     if ((cfg->bytes_to_read > 0) && (cfg->bytes_to_read <= len)) {
         len = cfg->bytes_to_read;
@@ -738,7 +744,7 @@ static int hasopt(int test, int argc, char *argv[], char const *optstring)
 
 static void parse_conf_option(r_cfg_t *cfg, int opt, char *arg);
 
-#define OPTSTRING "hVvqDc:x:z:p:a:AI:S:m:M:r:w:W:l:d:t:f:H:g:s:b:n:R:X:F:K:C:T:UG:y:E:Y:"
+#define OPTSTRING "hVvqDc:x:z:p:a:AI:S:m:M:r:w:W:l:d:t:f:H:g:s:b:n:R:X:F:K:C:T:UGy:E:Y:"
 
 // these should match the short options exactly
 static struct conf_keywords const conf_keywords[] = {
@@ -894,15 +900,8 @@ static void parse_conf_option(r_cfg_t *cfg, int opt, char *arg)
             FATAL_STRDUP("parse_conf_option()");
         break;
     case 'G':
-        if (atobv(arg, 1) == 4) {
-            fprintf(stderr, "\n\tUse -G for testing only. Enable protocols with -R if you really need them.\n\n");
-            cfg->no_default_devices = 1;
-            register_all_protocols(cfg, 1);
-        }
-        else {
-            fprintf(stderr, "\n\tUse -G for testing only. Enable with -G 4 if you really mean it.\n\n");
-            exit(1);
-        }
+        fprintf(stderr, "register_all (-G) is deprecated. Use -R or a config file to enable additional protocols.\n");
+        exit(1);
         break;
     case 'p':
         cfg->ppm_error = atobv(arg, 0);
@@ -1143,6 +1142,9 @@ static void parse_conf_option(r_cfg_t *cfg, int opt, char *arg)
         }
         else if (strncmp(arg, "null", 4) == 0) {
             add_null_output(cfg, arg_param(arg));
+        }
+        else if (strncmp(arg, "rtl_tcp", 7) == 0) {
+            add_rtltcp_output(cfg, arg_param(arg));
         }
         else {
             fprintf(stderr, "Invalid output format %s\n", arg);
@@ -1546,7 +1548,7 @@ int main(int argc, char **argv) {
                         r += run_fsk_demods(&single_dev, &pulse_data);
                     list_free_elems(&single_dev, NULL);
                 } else
-                r += pulse_demod_string(e, r_dev);
+                r += pulse_slicer_string(e, r_dev);
                 continue;
             }
             // otherwise test all decoders
@@ -1562,7 +1564,7 @@ int main(int argc, char **argv) {
                 r_device *r_dev = *iter;
                 if (cfg->verbosity)
                     fprintf(stderr, "Verifying test data with device %s.\n", r_dev->name);
-                r += pulse_demod_string(line, r_dev);
+                r += pulse_slicer_string(line, r_dev);
             }
         }
 
@@ -1588,7 +1590,7 @@ int main(int argc, char **argv) {
             r_device *r_dev = *iter;
             if (cfg->verbosity)
                 fprintf(stderr, "Verifying test data with device %s.\n", r_dev->name);
-            r += pulse_demod_string(cfg->test_data, r_dev);
+            r += pulse_slicer_string(cfg->test_data, r_dev);
         }
         r_free_cfg(cfg);
         exit(!r);

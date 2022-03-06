@@ -49,12 +49,11 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
        e.g. -t "antenna=A,bandwidth=4.5M,rfnotch_ctrl=false"
   [-f <frequency>] Receive frequency(s) (default: 433920000 Hz)
   [-H <seconds>] Hop interval for polling of multiple frequencies (default: 600 seconds)
-  [-p <ppm_error] Correct rtl-sdr tuner frequency offset error (default: 0)
+  [-p <ppm_error>] Correct rtl-sdr tuner frequency offset error (default: 0)
   [-s <sample rate>] Set sample rate (default: 250000 Hz)
 		= Demodulator options =
   [-R <device> | help] Enable only the specified device decoding protocol (can be used multiple times)
        Specify a negative number to disable a device decoding protocol (can be used multiple times)
-  [-G] Enable blacklisted device decoding protocols, for testing only.
   [-X <spec> | help] Add a general purpose decoder (prepend -R 0 to disable all decoders)
   [-Y auto | classic | minmax] FSK pulse detector mode.
   [-Y level=<dB level>] Manual detection level used to determine pulses (-1.0 to -30.0) (0=auto).
@@ -295,6 +294,10 @@ See [CONTRIBUTING.md](./docs/CONTRIBUTING.md).
     [209]  SimpliSafe Gen 3 Home Security System
     [210]  Yale HSA (Home Security Alarm), YES-Alarmkit
     [211]  Regency Ceiling Fan Remote (-f 303.75M to 303.96M)
+    [212]  Renault 0435R TPMS
+    [213]  Fine Offset Electronics WS80 weather station
+    [214]  EMOS E6016 weatherstation with DCF77
+    [215]  Altronics X7064 temperature and humidity sensor
 
 * Disabled by default, use -R n or -G
 

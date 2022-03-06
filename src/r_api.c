@@ -22,7 +22,7 @@
 #include "r_private.h"
 #include "rtl_433_devices.h"
 #include "r_device.h"
-#include "pulse_demod.h"
+#include "pulse_slicer.h"
 #include "pulse_detect_fsk.h"
 #include "sdr.h"
 #include "data.h"
@@ -34,6 +34,7 @@
 #include "output_mqtt.h"
 #include "output_influx.h"
 #include "output_trigger.h"
+#include "output_rtltcp.h"
 #include "write_sigrok.h"
 #include "mongoose.h"
 #include "compat_time.h"
@@ -222,6 +223,8 @@ void r_free_cfg(r_cfg_t *cfg)
     free(cfg->demod);
 
     free(cfg->devices);
+
+    list_free_elems(&cfg->raw_handler, (list_elem_free_fn)raw_output_free);
 
     list_free_elems(&cfg->output_handler, (list_elem_free_fn)data_output_free);
 
@@ -486,32 +489,33 @@ int run_ook_demods(list_t *r_devs, pulse_data_t *pulse_data)
                 continue;
 
             switch (r_dev->modulation) {
-            case OOK_PULSE_PCM_RZ:
-                p_events += pulse_demod_pcm(pulse_data, r_dev);
+            case OOK_PULSE_PCM:
+            // case OOK_PULSE_RZ:
+                p_events += pulse_slicer_pcm(pulse_data, r_dev);
                 break;
             case OOK_PULSE_PPM:
-                p_events += pulse_demod_ppm(pulse_data, r_dev);
+                p_events += pulse_slicer_ppm(pulse_data, r_dev);
                 break;
             case OOK_PULSE_PWM:
-                p_events += pulse_demod_pwm(pulse_data, r_dev);
+                p_events += pulse_slicer_pwm(pulse_data, r_dev);
                 break;
             case OOK_PULSE_MANCHESTER_ZEROBIT:
-                p_events += pulse_demod_manchester_zerobit(pulse_data, r_dev);
+                p_events += pulse_slicer_manchester_zerobit(pulse_data, r_dev);
                 break;
             case OOK_PULSE_PIWM_RAW:
-                p_events += pulse_demod_piwm_raw(pulse_data, r_dev);
+                p_events += pulse_slicer_piwm_raw(pulse_data, r_dev);
                 break;
             case OOK_PULSE_PIWM_DC:
-                p_events += pulse_demod_piwm_dc(pulse_data, r_dev);
+                p_events += pulse_slicer_piwm_dc(pulse_data, r_dev);
                 break;
             case OOK_PULSE_DMC:
-                p_events += pulse_demod_dmc(pulse_data, r_dev);
+                p_events += pulse_slicer_dmc(pulse_data, r_dev);
                 break;
             case OOK_PULSE_PWM_OSV1:
-                p_events += pulse_demod_osv1(pulse_data, r_dev);
+                p_events += pulse_slicer_osv1(pulse_data, r_dev);
                 break;
             case OOK_PULSE_NRZS:
-                p_events += pulse_demod_nrzs(pulse_data, r_dev);
+                p_events += pulse_slicer_nrzs(pulse_data, r_dev);
                 break;
             // FSK decoders
             case FSK_PULSE_PCM:
@@ -547,7 +551,8 @@ int run_fsk_demods(list_t *r_devs, pulse_data_t *fsk_pulse_data)
 
             switch (r_dev->modulation) {
             // OOK decoders
-            case OOK_PULSE_PCM_RZ:
+            case OOK_PULSE_PCM:
+            // case OOK_PULSE_RZ:
             case OOK_PULSE_PPM:
             case OOK_PULSE_PWM:
             case OOK_PULSE_MANCHESTER_ZEROBIT:
@@ -558,13 +563,13 @@ int run_fsk_demods(list_t *r_devs, pulse_data_t *fsk_pulse_data)
             case OOK_PULSE_NRZS:
                 break;
             case FSK_PULSE_PCM:
-                p_events += pulse_demod_pcm(fsk_pulse_data, r_dev);
+                p_events += pulse_slicer_pcm(fsk_pulse_data, r_dev);
                 break;
             case FSK_PULSE_PWM:
-                p_events += pulse_demod_pwm(fsk_pulse_data, r_dev);
+                p_events += pulse_slicer_pwm(fsk_pulse_data, r_dev);
                 break;
             case FSK_PULSE_MANCHESTER_ZEROBIT:
-                p_events += pulse_demod_manchester_zerobit(fsk_pulse_data, r_dev);
+                p_events += pulse_slicer_manchester_zerobit(fsk_pulse_data, r_dev);
                 break;
             default:
                 fprintf(stderr, "Unknown modulation %u in protocol!\n", r_dev->modulation);
@@ -997,6 +1002,16 @@ void add_null_output(r_cfg_t *cfg, char *param)
 {
     UNUSED(param);
     list_push(&cfg->output_handler, NULL);
+}
+
+void add_rtltcp_output(r_cfg_t *cfg, char *param)
+{
+    char *host = "localhost";
+    char *port = "1234";
+    hostport_param(param, &host, &port);
+    fprintf(stderr, "rtl_tcp server at %s port %s\n", host, port);
+
+    list_push(&cfg->raw_handler, raw_output_rtltcp_create(host, port, cfg));
 }
 
 void add_sr_dumper(r_cfg_t *cfg, char const *spec, int overwrite)

@@ -25,14 +25,16 @@ add_library(r_433 STATIC
     output_file.c
     output_influx.c
     output_mqtt.c
+    output_rtltcp.c
     output_trigger.c
     output_udp.c
     pulse_analyzer.c
-    pulse_demod.c
     pulse_detect.c
     pulse_detect_fsk.c
+    pulse_slicer.c
     r_api.c
     r_util.c
+    raw_output.c
     rfraw.c
     samp_grab.c
     sdr.c
@@ -45,6 +47,7 @@ add_library(r_433 STATIC
     devices/acurite_01185m.c
     devices/akhan_100F14.c
     devices/alecto.c
+    devices/altronics_x7064.c
     devices/ambient_weather.c
     devices/ambientweather_tx8300.c
     devices/ambientweather_wh31e.c
@@ -85,6 +88,7 @@ add_library(r_433 STATIC
     devices/elro_db286a.c
     devices/elv.c
     devices/emontx.c
+    devices/emos_e6016.c
     devices/enocean_erp1.c
     devices/ert_idm.c
     devices/ert_scm.c
@@ -96,6 +100,7 @@ add_library(r_433 STATIC
     devices/fineoffset_wh1050.c
     devices/fineoffset_wh1080.c
     devices/fineoffset_wh31l.c
+    devices/fineoffset_ws80.c
     devices/flex.c
     devices/fordremote.c
     devices/fs20.c
@@ -209,6 +214,7 @@ add_library(r_433 STATIC
     devices/tpms_pmv107j.c
     devices/tpms_porsche.c
     devices/tpms_renault.c
+    devices/tpms_renault_0435r.c
     devices/tpms_toyota.c
     devices/tpms_truck.c
     devices/ts_ft002.c
@@ -233,6 +239,15 @@ endif()
 
 add_executable(rtl_433 rtl_433.c)
 target_link_libraries(rtl_433 r_433)
+
+# target_compile_definitions was only added with CMake 2.8.11
+if(THREADS_HAVE_PTHREAD_ARG)
+    set_target_properties(r_433 PROPERTIES COMPILE_OPTIONS "-pthread")
+    set_target_properties(r_433 PROPERTIES INTERFACE_COMPILE_OPTIONS "-pthread")
+endif()
+if(CMAKE_THREAD_LIBS_INIT)
+    target_link_libraries(rtl_433 "${CMAKE_THREAD_LIBS_INIT}")
+endif()
 
 if(MSVC)
     # needs CMake 3.1 but Windows builds should have that
