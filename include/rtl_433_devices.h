@@ -149,7 +149,6 @@
     DECL(norgo) \
     DECL(tpms_elantra2012) \
     DECL(auriol_hg02832) \
-    DECL(custom_thermistor) \
     DECL(fineoffset_WH51) \
     DECL(holman_ws5029pwm) \
     DECL(archos_tbh) \
@@ -226,6 +225,7 @@
     DECL(altronics_7064) \
 
     /* Add new decoders here. */
+    // DECL(custom_thermistor) \
 
 #define DECL(name) extern r_device name;
 DEVICES
