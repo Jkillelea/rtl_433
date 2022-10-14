@@ -129,7 +129,7 @@ Produce decoded output in given format.
        Append output to file with :<filename> (e.g. \-F csv:log.csv), defaults to stdout.
        Specify host/port for syslog with e.g. \-F syslog:127.0.0.1:1514
 .TP
-[ \fB\-M\fI time[:<options>] | protocol | level | noise[:secs] | stats | bits | help\fP ]
+[ \fB\-M\fI time[:<options>] | protocol | level | noise[:<secs>] | stats | bits | help\fP ]
 Add various meta data to each output.
 .TP
 [ \fB\-K\fI FILE | PATH | <tag> | <key>=<tag>\fP ]
@@ -232,7 +232,10 @@ where:
 OOK_MC_ZEROBIT :  Manchester Code with fixed leading zero bit
 .RE
 .RS
-OOK_PCM :         Pulse Code Modulation (RZ or NRZ)
+OOK_PCM :         Non Return to Zero coding (Pulse Code)
+.RE
+.RS
+OOK_RZ :          Return to Zero coding (Pulse Code)
 .RE
 .RS
 OOK_PPM :         Pulse Position Modulation
@@ -263,7 +266,7 @@ FSK_MC_ZEROBIT :  Manchester Code with fixed leading zero bit
 .RE
 <short>, <long>, <sync> are nominal modulation timings in us,
 <reset>, <gap>, <tolerance> are maximum modulation timings in us:
-PCM     short: Nominal width of pulse [us]
+PCM/RZ  short: Nominal width of pulse [us]
          long: Nominal width of bit period [us]
 PPM     short: Nominal width of '0' gap [us]
          long: Nominal width of '1' gap [us]
@@ -291,6 +294,9 @@ invert : invert all bits
 .RE
 .RS
 reflect : reflect each byte (MSB first to MSB last)
+.RE
+.RS
+decode_uart : UART 8n1 (10\-to\-8) decode
 .RE
 .RS
 match=<bits> : only match if the <bits> are found
@@ -409,7 +415,7 @@ Use "protocol" / "noprotocol" to output the decoder protocol number meta data.
 Use "level" to add Modulation, Frequency, RSSI, SNR, and Noise meta data.
 .RE
 .RS
-Use "noise[:secs]" to report estimated noise level at intervals (default: 10 seconds).
+Use "noise[:<secs>]" to report estimated noise level at intervals (default: 10 seconds).
 .RE
 .RS
 Use "stats[:[<level>][:<interval>]]" to report statistics (default: 600 seconds).

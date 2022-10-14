@@ -258,7 +258,7 @@ static int fineoffset_WH24_callback(r_device *decoder, bitbuffer_t *bitbuffer)
         rain_cup_count = 0.254f;
     }
     // Wind speed is scaled by 8, wind speed = raw / 8 * 1.12 m/s (0.51 for WH65B)
-    float wind_speed_ms = wind_speed_raw * 0.125 * wind_speed_factor;
+    float wind_speed_ms = wind_speed_raw * 0.125f * wind_speed_factor;
     int gust_speed_raw  = b[7];             // 0xff if invalid
     // Wind gust is unscaled, multiply by wind speed factor 1.12 m/s
     float gust_speed_ms = gust_speed_raw * wind_speed_factor;
@@ -548,8 +548,8 @@ static int fineoffset_WH25_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     return 1;
 }
 
-/*
-Fine Offset WH51, ECOWITT WH51, MISOL/1 Soil Moisture Sensor
+/**
+Fine Offset WH51, ECOWITT WH51, MISOL/1 Soil Moisture Sensor.
 
 Also: SwitchDoc Labs SM23 Soil Moisture Sensor.
 
@@ -557,35 +557,34 @@ Test decoding with: rtl_433 -f 433920000  -X "n=soil_sensor,m=FSK_PCM,s=58,l=58,
 
 Data format:
 
-               00 01 02 03 04 05 06 07 08 09 10 11 12 13
-aa aa aa 2d d4 51 00 6b 58 6e 7f 24 f8 d2 ff ff ff 3c 28 8
-               FF II II II TB YY MM ZA AA XX XX XX CC SS
+                   00 01 02 03 04 05 06 07 08 09 10 11 12 13
+    aa aa aa 2d d4 51 00 6b 58 6e 7f 24 f8 d2 ff ff ff 3c 28 8
+                   FF II II II TB YY MM ZA AA XX XX XX CC SS
 
-Sync:     aa aa aa ...
-Preamble: 2d d4
-FF:       Family code 0x51 (ECOWITT/FineOffset WH51)
-IIIIII:   ID (3 bytes)
-T:        Transmission period boost: highest 3 bits set to 111 on moisture change and decremented each transmission;
-          if T = 0 period is 70 sec, if T > 0 period is 10 sec
-B:        Battery voltage: lowest 5 bits are battery voltage * 10 (e.g. 0x0c = 12 = 1.2V). Transmitter works down to 0.7V (0x07)
-YY:       ? Fixed: 0x7f
-MM:       Moisture percentage 0%-100% (0x00-0x64) MM = (AD - 70) / (450 - 70)
-Z:        ? Fixed: leftmost 7 bit 1111 100
-AAA:      9 bit AD value MSB byte[07] & 0x01, LSB byte[08]
-XXXXXX:   ? Fixed: 0xff 0xff 0xff
-CC:       CRC of the preceding 12 bytes (Polynomial 0x31, Initial value 0x00, Input not reflected, Result not reflected)
-SS:       Sum of the preceding 13 bytes % 256
+- Sync:     aa aa aa ...
+- Preamble: 2d d4
+- FF:       Family code 0x51 (ECOWITT/FineOffset WH51)
+- IIIIII:   ID (3 bytes)
+- T:        Transmission period boost: highest 3 bits set to 111 on moisture change and decremented each transmission;
+-           if T = 0 period is 70 sec, if T > 0 period is 10 sec
+- B:        Battery voltage: lowest 5 bits are battery voltage * 10 (e.g. 0x0c = 12 = 1.2V). Transmitter works down to 0.7V (0x07)
+- YY:       ? Fixed: 0x7f
+- MM:       Moisture percentage 0%-100% (0x00-0x64) MM = (AD - 70) / (450 - 70)
+- Z:        ? Fixed: leftmost 7 bit 1111 100
+- AAA:      9 bit AD value MSB byte[07] & 0x01, LSB byte[08]
+- XXXXXX:   ? Fixed: 0xff 0xff 0xff
+- CC:       CRC of the preceding 12 bytes (Polynomial 0x31, Initial value 0x00, Input not reflected, Result not reflected)
+- SS:       Sum of the preceding 13 bytes % 256
 
 See http://www.ecowitt.com/upfile/201904/WH51%20Manual.pdf for relationship between AD and moisture %
 
 Short explanation:
-Soil Moisture Percentage = (Moisture AD – 0%AD) / (100%AD – 0%AD) * 100
-0%AD = 70
-100%AD = 450 (manual states 500, but sensor internal computation are closer to 450)
-If sensor-calculated moisture percentage are inaccurate at low/high values, use the AD value and the above formaula
-changing 0%AD and 100%AD to cover the full scale from dry to damp
+- Soil Moisture Percentage = (Moisture AD – 0%AD) / (100%AD – 0%AD) * 100
+- 0%AD = 70
+- 100%AD = 450 (manual states 500, but sensor internal computation are closer to 450)
+- If sensor-calculated moisture percentage are inaccurate at low/high values, use the AD value and the above formaula
+  changing 0%AD and 100%AD to cover the full scale from dry to damp
 */
-
 static int fineoffset_WH51_callback(r_device *decoder, bitbuffer_t *bitbuffer)
 {
     data_t *data;
@@ -629,7 +628,7 @@ static int fineoffset_WH51_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     sprintf(id, "%02x%02x%02x", b[1], b[2], b[3]);
     int boost           = (b[4] & 0xe0) >> 5;
     int battery_mv      = (b[4] & 0x1f) * 100;
-    float battery_level = (battery_mv - 700) / 900.0; // assume 1.6V (100%) to 0.7V (0%) range
+    float battery_level = (battery_mv - 700) / 900.0f; // assume 1.6V (100%) to 0.7V (0%) range
     int ad_raw          = (((int)b[7] & 0x01) << 8) | (int)b[8];
     int moisture        = b[6];
 
@@ -701,7 +700,7 @@ static int alecto_ws1200v1_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     int temp_raw      = (b[1] & 0x7) << 8 | b[2];
     float temperature = (temp_raw - 400) * 0.1f;
     int rainfall_raw  = b[4] << 8 | b[3];   // rain tip counter
-    float rainfall    = rainfall_raw * 0.3; // each tip is 0.3mm
+    float rainfall    = rainfall_raw * 0.3f; // each tip is 0.3mm
 
     /* clang-format off */
     data = data_make(
@@ -859,7 +858,7 @@ static int alecto_ws1200v2_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     int temp_raw      = (b[1] & 0x7) << 8 | b[2];
     float temperature = (temp_raw - 400) * 0.1f;
     int rainfall_raw  = b[4] << 8 | b[3];   // rain tip counter
-    float rainfall    = rainfall_raw * 0.3; // each tip is 0.3mm
+    float rainfall    = rainfall_raw * 0.3f; // each tip is 0.3mm
 
     /* clang-format off */
     data = data_make(
@@ -932,7 +931,7 @@ static int fineoffset_WH0530_callback(r_device *decoder, bitbuffer_t *bitbuffer)
     int temp_raw      = (b[1] & 0x7) << 8 | b[2];
     float temperature = (temp_raw - 400) * 0.1f;
     int rainfall_raw  = b[4] << 8 | b[3];   // rain tip counter
-    float rainfall    = rainfall_raw * 0.3; // each tip is 0.3mm
+    float rainfall    = rainfall_raw * 0.3f; // each tip is 0.3mm
 
     /* clang-format off */
     data = data_make(

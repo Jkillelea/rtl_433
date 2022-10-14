@@ -176,7 +176,7 @@ static void usage(int exit_code)
             "  [-F kv | json | csv | mqtt | influx | syslog | trigger | null | help] Produce decoded output in given format.\n"
             "       Append output to file with :<filename> (e.g. -F csv:log.csv), defaults to stdout.\n"
             "       Specify host/port for syslog with e.g. -F syslog:127.0.0.1:1514\n"
-            "  [-M time[:<options>] | protocol | level | noise[:secs] | stats | bits | help] Add various meta data to each output.\n"
+            "  [-M time[:<options>] | protocol | level | noise[:<secs>] | stats | bits | help] Add various meta data to each output.\n"
             "  [-K FILE | PATH | <tag> | <key>=<tag>] Add an expanded token or fixed tag to every output line.\n"
             "  [-C native | si | customary] Convert units in decoded output.\n"
             "  [-n <value>] Specify number of samples to take (each sample is an I/Q pair)\n"
@@ -201,7 +201,7 @@ static void help_protocols(r_device *devices, unsigned num_devices, int exit_cod
             if (devices[i].disabled <= 2) // if not hidden
                 fprintf(stderr, "    [%02u]%c %s\n", i + 1, disabledc, devices[i].name);
         }
-        fprintf(stderr, "\n* Disabled by default, use -R n or -G\n");
+        fprintf(stderr, "\n* Disabled by default, use -R n or a conf file to enable\n");
     }
     exit(exit_code);
 }
@@ -282,7 +282,7 @@ static void help_tags(void)
             "\t\t\"-K loc=gpsd,lat,lon\" (report lat and lon in loc object)\n"
             "\t\t\"-K gpsd\" (full json TPV report, in default \"gps\" object)\n"
             "\t\t\"-K foo=gpsd://127.0.0.1:2947\" (with key and address)\n"
-            "\t\t\"-K bar=gpsd,nmea\" (NMEA deault GPGGA report)\n"
+            "\t\t\"-K bar=gpsd,nmea\" (NMEA default GPGGA report)\n"
             "\t\t\"-K rmc=gpsd,nmea,filter='$GPRMC'\" (NMEA GPRMC report)\n"
             "\tAlso <tag> can be a generic tcp address, e.g.\n"
             "\t\t\"-K foo=tcp:localhost:4000\" (read lines as TCP client)\n"
@@ -299,18 +299,18 @@ static void help_meta(void)
             "  [-M time[:<options>]|protocol|level|noise[:<secs>]|stats|bits] Add various metadata to every output line.\n"
             "\tUse \"time\" to add current date and time meta data (preset for live inputs).\n"
             "\tUse \"time:rel\" to add sample position meta data (preset for read-file and stdin).\n"
-            "\tUse \"time:unix\" to show the seconds since unix epoch as time meta data.\n"
+            "\tUse \"time:unix\" to show the seconds since unix epoch as time meta data. This is always UTC.\n"
             "\tUse \"time:iso\" to show the time with ISO-8601 format (YYYY-MM-DD\"T\"hh:mm:ss).\n"
             "\tUse \"time:off\" to remove time meta data.\n"
             "\tUse \"time:usec\" to add microseconds to date time meta data.\n"
             "\tUse \"time:tz\" to output time with timezone offset.\n"
             "\tUse \"time:utc\" to output time in UTC.\n"
             "\t\t(this may also be accomplished by invocation with TZ environment variable set).\n"
-            "\t\t\"usec\" and \"utc\" can be combined with other options, eg. \"time:unix:utc:usec\".\n"
+            "\t\t\"usec\" and \"utc\" can be combined with other options, eg. \"time:iso:utc\" or \"time:unix:usec\".\n"
             "\tUse \"replay[:N]\" to replay file inputs at (N-times) realtime.\n"
             "\tUse \"protocol\" / \"noprotocol\" to output the decoder protocol number meta data.\n"
             "\tUse \"level\" to add Modulation, Frequency, RSSI, SNR, and Noise meta data.\n"
-            "\tUse \"noise[:secs]\" to report estimated noise level at intervals (default: 10 seconds).\n"
+            "\tUse \"noise[:<secs>]\" to report estimated noise level at intervals (default: 10 seconds).\n"
             "\tUse \"stats[:[<level>][:<interval>]]\" to report statistics (default: 600 seconds).\n"
             "\t  level 0: no report, 1: report successful devices, 2: report active devices, 3: report all\n"
             "\tUse \"bits\" to add bit representation to code outputs (for debug).\n");
@@ -704,7 +704,7 @@ static void sdr_callback(unsigned char *iq_buf, uint32_t len, void *ctx)
     // choose hop_index as frequency_index, if there are too few hop_times use the last one
     int hop_index = cfg->hop_times > cfg->frequency_index ? cfg->frequency_index : cfg->hop_times - 1;
     if (cfg->hop_times > 0 && cfg->frequencies > 1
-            && difftime(rawtime, cfg->hop_start_time) > cfg->hop_time[hop_index]) {
+            && difftime(rawtime, cfg->hop_start_time) >= cfg->hop_time[hop_index]) {
         alarm(0); // cancel the watchdog timer
         cfg->hop_now = 1;
     }
@@ -1134,8 +1134,8 @@ static void parse_conf_option(r_cfg_t *cfg, int opt, char *arg)
         else if (strncmp(arg, "syslog", 6) == 0) {
             add_syslog_output(cfg, arg_param(arg));
         }
-        else if (strncmp(optarg, "http", 4) == 0) {
-            add_http_output(cfg, arg_param(optarg));
+        else if (strncmp(arg, "http", 4) == 0) {
+            add_http_output(cfg, arg_param(arg));
         }
         else if (strncmp(arg, "trigger", 7) == 0) {
             add_trigger_output(cfg, arg_param(arg));
@@ -1480,7 +1480,7 @@ int main(int argc, char **argv) {
 
     char const **well_known = well_known_output_fields(cfg);
     start_outputs(cfg, well_known);
-    free(well_known);
+    free((void *)well_known);
 
     if (cfg->out_block_size < MINIMAL_BUF_LENGTH ||
             cfg->out_block_size > MAXIMAL_BUF_LENGTH) {
