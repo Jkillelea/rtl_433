@@ -9,7 +9,6 @@ add_library(r_433 STATIC
     am_analyze.c
     baseband.c
     bitbuffer.c
-    compat_alarm.c
     compat_paths.c
     compat_time.c
     confparse.c
@@ -62,6 +61,7 @@ add_library(r_433 STATIC
     devices/auriol_ahfl.c
     devices/auriol_hg02832.c
     devices/badger_water.c
+    devices/baldr_rain.c
     devices/blueline.c
     devices/blyss.c
     devices/brennenstuhl_rcs_2044.c
@@ -75,6 +75,7 @@ add_library(r_433 STATIC
     devices/cardin.c
     devices/cavius.c
     devices/ced7000.c
+    devices/celsia_czc1.c
     devices/chuango.c
     devices/cmr113.c
     devices/companion_wtr001.c
@@ -110,11 +111,14 @@ add_library(r_433 STATIC
     devices/fineoffset_wh45.c
     devices/fineoffset_wn34.c
     devices/fineoffset_ws80.c
+    devices/fineoffset_ws90.c
     devices/flex.c
+    devices/flowis.c
     devices/fordremote.c
     devices/fs20.c
     devices/ft004b.c
     devices/funkbus.c
+    devices/gasmate_ba1008.c
     devices/ge_coloreffects.c
     devices/generic_motion.c
     devices/generic_remote.c
@@ -149,6 +153,7 @@ add_library(r_433 STATIC
     devices/lacrosse_r1.c
     devices/lacrosse_th3.c
     devices/lacrosse_tx141x.c
+    devices/lacrosse_tx31u.c
     devices/lacrosse_tx34.c
     devices/lacrosse_tx35.c
     devices/lacrosse_wr1.c
@@ -171,6 +176,7 @@ add_library(r_433 STATIC
     devices/nexus.c
     devices/nice_flor_s.c
     devices/norgo.c
+    devices/oil_smart.c
     devices/oil_standard.c
     devices/oil_watchman.c
     devices/oil_watchman_advanced.c
@@ -187,6 +193,7 @@ add_library(r_433 STATIC
     devices/radiohead_ask.c
     devices/rainpoint.c
     devices/regency_fan.c
+    devices/revolt_nc5462.c
     devices/rftech.c
     devices/rojaflex.c
     devices/rubicson.c
@@ -219,9 +226,11 @@ add_library(r_433 STATIC
     devices/thermopro_tp11.c
     devices/thermopro_tp12.c
     devices/thermopro_tx2.c
+    devices/thermopro_tx2c.c
     devices/tpms_abarth124.c
     devices/tpms_ave.c
     devices/tpms_citroen.c
+    devices/tpms_eezrv.c
     devices/tpms_elantra2012.c
     devices/tpms_ford.c
     devices/tpms_hyundai_vdo.c
