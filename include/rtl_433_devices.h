@@ -242,6 +242,17 @@
     DECL(tfa_14_1504_v2) \
     DECL(ced7000) \
     DECL(oil_watchman_advanced) \
+    DECL(oil_smart) \
+    DECL(gasmate_ba1008) \
+    DECL(flowis) \
+    DECL(m_bus_mode_c_t_downlink) \
+    DECL(revolt_nc5462) \
+    DECL(lacrosse_tx31u) \
+    DECL(tpms_eezrv) \
+    DECL(baldr_rain) \
+    DECL(celsia_czc1) \
+    DECL(fineoffset_ws90) \
+    DECL(thermopro_tx2c) \
 
     /* Add new decoders here. */
     // DECL(custom_thermistor) \
