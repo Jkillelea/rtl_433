@@ -39,7 +39,7 @@ Packet layout:
 
 To peer a new sensor to the unit, bit 79 and 80 has to be both to 1.
 
-NOTE: In the datasheet, it is said that the sensor can report low batterie. During my tests/reseach i'm not able to see this behavior. I have fuzzed all bits nothing was reported to the reader.
+NOTE: In the datasheet, it is said that the sensor can report low batterie. During my tests/research i'm not able to see this behavior. I have fuzzed all bits nothing was reported to the reader.
 
 Flex decoder:
 
@@ -95,9 +95,9 @@ static int tpms_tyreguard400_decode(r_device *decoder, bitbuffer_t *bitbuffer, u
     //int add1024 = (flags & 0x40) >> 6; // bytes = 0b0X000000
 
     char id_str[8];
-    sprintf(id_str, "%07x", (uint32_t)(((b[3] & 0xf)<<24)) | (b[4]<<16) | (b[5]<<8) |  b[6]); // 28 bits ID
+    snprintf(id_str, sizeof(id_str), "%07x", (uint32_t)(((b[3] & 0xf)<<24)) | (b[4]<<16) | (b[5]<<8) |  b[6]); // 28 bits ID
     char flags_str[3];
-    sprintf(flags_str, "%02x", flags);
+    snprintf(flags_str, sizeof(flags_str), "%02x", flags);
 
     //id = (b[4] << 8)
     int pressure_kpa = b[7] | ((flags & 0x70) << 4);
@@ -130,7 +130,7 @@ static int tpms_tyreguard400_decode(r_device *decoder, bitbuffer_t *bitbuffer, u
 static int tpms_tyreguard400_callback(r_device *decoder, bitbuffer_t *bitbuffer)
 {
     //uint8_t const tyreguard_frame_sync[] = {0xf, 0xd5, 0xfd, 0x5f}
-    uint8_t const tyreguard_frame_sync[] = {0xfd, 0x5f, 0xd5, 0xf0}; // needs to shift sync to align bytes 28x bits usefull
+    uint8_t const tyreguard_frame_sync[] = {0xfd, 0x5f, 0xd5, 0xf0}; // needs to shift sync to align bytes 28x bits useful
 
     int ret    = 0;
     int events = 0;
