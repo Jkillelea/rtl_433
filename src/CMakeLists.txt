@@ -42,7 +42,6 @@ add_library(r_433 STATIC
     samp_grab.c
     sdr.c
     term_ctl.c
-    util.c
     write_sigrok.c
     devices/abmt.c
     devices/acurite.c
