@@ -136,6 +136,7 @@ add_library(r_433 STATIC
     devices/gasmate_ba1008.c
     devices/ge_coloreffects.c
     devices/geevon.c
+    devices/geevon_tx19.c
     devices/generic_motion.c
     devices/generic_remote.c
     devices/generic_temperature_sensor.c
@@ -226,6 +227,7 @@ add_library(r_433 STATIC
     devices/rubicson_48659.c
     devices/rubicson_pool_48942.c
     devices/s3318p.c
+    devices/sainlogic_sa8.c
     devices/schou_72543_rain.c
     devices/schraeder.c
     devices/scmplus.c
@@ -254,6 +256,7 @@ add_library(r_433 STATIC
     devices/thermopro_tp12.c
     devices/thermopro_tp28b.c
     devices/thermopro_tp82xb.c
+    devices/thermopro_tp862b.c
     devices/thermopro_tx2.c
     devices/thermopro_tx2c.c
     devices/thermopro_tx7b.c
@@ -286,6 +289,7 @@ add_library(r_433 STATIC
     devices/vauno_en8822c.c
     devices/vevor_7in1.c
     devices/visonic_powercode.c
+    devices/wallarge_cltx001.c
     devices/watts_thermostat.c
     devices/waveman.c
     devices/wec2103.c

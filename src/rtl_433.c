@@ -1383,8 +1383,7 @@ static void sighandler(int signum)
     if (signum == SIGPIPE) {
         // NOTE: we already ignore most network SIGPIPE's, this might be a STDOUT/STDERR problem.
         // Printing is likely not the correct way to handle this.
-        write_err("Ignoring received signal SIGPIPE, Broken pipe.\n");
-        return;
+        write_err("Signal SIGPIPE caught, broken pipe, exiting!\n");
     }
     else if (signum == SIGHUP) {
         sig_hup = 1;
@@ -1921,7 +1920,7 @@ int main(int argc, char **argv) {
             // special case for pulse data file-inputs
             if (demod->load_info.format == PULSE_OOK) {
                 while (!cfg->exit_async) {
-                    pulse_data_load(in_file, &demod->pulse_data, cfg->samp_rate);
+                    pulse_data_load(in_file, &demod->now, &demod->pulse_data, cfg->samp_rate);
                     if (!demod->pulse_data.num_pulses)
                         break;
 

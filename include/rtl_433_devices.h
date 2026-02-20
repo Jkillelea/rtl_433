@@ -268,7 +268,7 @@
     DECL(chamberlain_cwpirc) \
     DECL(thermopro_tp829b) \
     DECL(arad_ms_meter) \
-    DECL(geevon) \
+    DECL(geevon_tx16) \
     DECL(fineoffset_wh46) \
     DECL(vevor_7in1) \
     DECL(arexx_ml) \
@@ -297,7 +297,11 @@
     DECL(fineoffset_ws85) \
     DECL(oria_wa150km) \
     DECL(ec3k) \
-    DECL(orion_endpoint_2020)
+    DECL(orion_endpoint_2020) \
+    DECL(geevon_tx19) \
+    DECL(wallarge_cltx001) \
+    DECL(sainlogic_sa8) \
+    DECL(thermopro_tp862b)\
 
     /* Add new decoders here. */
     // DECL(custom_thermistor) \
